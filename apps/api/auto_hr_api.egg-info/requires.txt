@@ -1,5 +1,7 @@
 alembic<2,>=1.14
 fastapi<1,>=0.115
+langchain-core<1,>=0.3.79
+openai<2,>=1.107
 pydantic-settings<3,>=2.7
 python-dotenv<2,>=1.0
 sqlalchemy<3,>=2.0
