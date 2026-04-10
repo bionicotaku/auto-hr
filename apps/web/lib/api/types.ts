@@ -231,6 +231,28 @@ export type CandidateDetailActionContextDto = {
   email_drafts: CandidateDetailEmailDraftDto[];
 };
 
+export type CandidateStatusUpdateRequestDto = {
+  current_status: "pending" | "in_progress" | "rejected" | "offer_sent" | "hired";
+};
+
+export type CandidateStatusUpdateResponseDto = {
+  candidate_id: string;
+  current_status: "pending" | "in_progress" | "rejected" | "offer_sent" | "hired";
+};
+
+export type CandidateTagCreateRequestDto = {
+  tag_name: string;
+};
+
+export type CandidateFeedbackCreateRequestDto = {
+  note_text: string;
+  author_name?: string | null;
+};
+
+export type CandidateEmailDraftCreateRequestDto = {
+  draft_type: "reject" | "advance" | "offer" | "other";
+};
+
 export type CandidateDetailDto = {
   candidate_id: string;
   job: CandidateDetailJobContextDto;

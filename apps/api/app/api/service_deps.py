@@ -6,11 +6,14 @@ from app.files.temp_manager import TempImportManager
 from app.repositories.candidate_repository import CandidateRepository
 from app.repositories.job_repository import JobRepository
 from app.services.candidate_analysis_service import CandidateAnalysisService
+from app.services.email_draft_service import EmailDraftService
+from app.services.feedback_service import FeedbackService
 from app.services.candidate_import_service import CandidateImportService
 from app.services.candidate_query_service import CandidateQueryService
 from app.services.job_query_service import JobQueryService
 from app.services.job_service import JobService
 from app.workflows.candidate_analysis.import_prepare import CandidateImportPrepareWorkflow
+from app.workflows.candidate_analysis.email_draft import CandidateEmailDraftWorkflow
 from app.workflows.candidate_analysis.persist import CandidatePersistWorkflow
 from app.workflows.candidate_analysis.score_items import CandidateScoreItemsWorkflow
 from app.workflows.candidate_analysis.standardize import CandidateStandardizeWorkflow
@@ -74,4 +77,19 @@ def get_candidate_query_service(session: Session, _settings: Settings) -> Candid
     return CandidateQueryService(
         session=session,
         candidate_repository=CandidateRepository(),
+    )
+
+
+def get_feedback_service(session: Session, _settings: Settings) -> FeedbackService:
+    return FeedbackService(
+        session=session,
+        candidate_repository=CandidateRepository(),
+    )
+
+
+def get_email_draft_service(session: Session, _settings: Settings) -> EmailDraftService:
+    return EmailDraftService(
+        session=session,
+        candidate_repository=CandidateRepository(),
+        email_draft_workflow=CandidateEmailDraftWorkflow(OpenAIResponsesClient()),
     )

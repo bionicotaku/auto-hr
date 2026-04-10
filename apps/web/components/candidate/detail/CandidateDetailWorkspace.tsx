@@ -72,6 +72,7 @@ export function CandidateDetailWorkspace({ candidateId }: CandidateDetailWorkspa
           />
         </div>
         <CandidateActionPanel
+          candidateId={detail.candidate_id}
           actionContext={detail.action_context}
           tags={detail.supervisor_summary.tags}
         />

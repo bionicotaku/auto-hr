@@ -113,3 +113,25 @@ class CandidateDetailResponse(BaseModel):
     rubric_results: list[CandidateDetailRubricResultResponse]
     supervisor_summary: CandidateDetailSupervisorResponse
     action_context: CandidateDetailActionContextResponse
+
+
+class CandidateStatusUpdateRequest(BaseModel):
+    current_status: Literal["pending", "in_progress", "rejected", "offer_sent", "hired"]
+
+
+class CandidateStatusUpdateResponse(BaseModel):
+    candidate_id: str
+    current_status: Literal["pending", "in_progress", "rejected", "offer_sent", "hired"]
+
+
+class CandidateTagCreateRequest(BaseModel):
+    tag_name: str
+
+
+class CandidateFeedbackCreateRequest(BaseModel):
+    note_text: str
+    author_name: str | None = None
+
+
+class CandidateEmailDraftCreateRequest(BaseModel):
+    draft_type: Literal["reject", "advance", "offer", "other"]

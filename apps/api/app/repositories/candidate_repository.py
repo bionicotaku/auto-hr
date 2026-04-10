@@ -78,6 +78,19 @@ class CandidateTagCreateData:
     tag_source: str
 
 
+@dataclass(frozen=True)
+class CandidateFeedbackCreateData:
+    note_text: str
+    author_name: str | None
+
+
+@dataclass(frozen=True)
+class CandidateEmailDraftCreateData:
+    draft_type: str
+    subject: str
+    body: str
+
+
 class CandidateRepository:
     def create_candidate_graph(
         self,
@@ -192,6 +205,57 @@ class CandidateRepository:
         if candidate is None:
             raise LookupError(candidate_id)
         return candidate
+
+    def update_candidate_status(self, session: Session, candidate: Candidate, current_status: str) -> Candidate:
+        candidate.current_status = current_status
+        session.flush()
+        return candidate
+
+    def add_candidate_tag(
+        self,
+        session: Session,
+        candidate: Candidate,
+        tag_data: CandidateTagCreateData,
+    ) -> CandidateTag:
+        tag = CandidateTag(
+            candidate_id=candidate.id,
+            tag_name=tag_data.tag_name,
+            tag_source=tag_data.tag_source,
+        )
+        session.add(tag)
+        session.flush()
+        return tag
+
+    def add_candidate_feedback(
+        self,
+        session: Session,
+        candidate: Candidate,
+        feedback_data: CandidateFeedbackCreateData,
+    ) -> CandidateFeedback:
+        feedback = CandidateFeedback(
+            candidate_id=candidate.id,
+            note_text=feedback_data.note_text,
+            author_name=feedback_data.author_name,
+        )
+        session.add(feedback)
+        session.flush()
+        return feedback
+
+    def add_candidate_email_draft(
+        self,
+        session: Session,
+        candidate: Candidate,
+        draft_data: CandidateEmailDraftCreateData,
+    ) -> CandidateEmailDraft:
+        draft = CandidateEmailDraft(
+            candidate_id=candidate.id,
+            draft_type=draft_data.draft_type,
+            subject=draft_data.subject,
+            body=draft_data.body,
+        )
+        session.add(draft)
+        session.flush()
+        return draft
 
     def count_candidates_by_job_ids(self, session: Session, job_ids: list[str]) -> dict[str, int]:
         if not job_ids:

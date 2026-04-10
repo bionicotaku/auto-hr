@@ -118,6 +118,49 @@ def override_candidate_query_service(_session, _settings):
     return StubCandidateQueryService()
 
 
+class StubFeedbackService:
+    def update_status(self, candidate_id: str, current_status: str):
+        return {
+            "candidate_id": candidate_id,
+            "current_status": current_status,
+        }
+
+    def add_tag(self, candidate_id: str, tag_name: str):
+        return {
+            "id": "tag-manual-001",
+            "name": tag_name,
+            "source": "manual",
+        }
+
+    def add_feedback(self, candidate_id: str, *, note_text: str, author_name: str | None):
+        return {
+            "id": "feedback-002",
+            "author_name": author_name,
+            "note_text": note_text,
+            "created_at": "2026-04-10T01:00:00Z",
+        }
+
+
+class StubEmailDraftService:
+    def create_email_draft(self, candidate_id: str, draft_type: str):
+        return {
+            "id": "draft-002",
+            "draft_type": draft_type,
+            "subject": f"{draft_type} subject",
+            "body": f"{draft_type} body",
+            "created_at": "2026-04-10T01:00:00Z",
+            "updated_at": "2026-04-10T01:00:00Z",
+        }
+
+
+def override_feedback_service(_session, _settings):
+    return StubFeedbackService()
+
+
+def override_email_draft_service(_session, _settings):
+    return StubEmailDraftService()
+
+
 def test_get_candidate_detail_returns_complete_payload(client, monkeypatch) -> None:
     monkeypatch.setattr(service_deps, "get_candidate_query_service", override_candidate_query_service)
 
@@ -132,3 +175,51 @@ def test_get_candidate_detail_returns_complete_payload(client, monkeypatch) -> N
     assert body["rubric_results"][0]["rubric_name"] == "执行力"
     assert body["supervisor_summary"]["recommendation"] == "advance"
     assert body["action_context"]["feedbacks"][0]["note_text"] == "值得继续跟进"
+
+
+def test_update_candidate_status(client, monkeypatch) -> None:
+    monkeypatch.setattr(service_deps, "get_feedback_service", override_feedback_service)
+
+    response = client.patch("/api/candidates/candidate-001/status", json={"current_status": "in_progress"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "candidate_id": "candidate-001",
+        "current_status": "in_progress",
+    }
+
+
+def test_create_candidate_tag(client, monkeypatch) -> None:
+    monkeypatch.setattr(service_deps, "get_feedback_service", override_feedback_service)
+
+    response = client.post("/api/candidates/candidate-001/tags", json={"tag_name": "优先跟进"})
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "优先跟进"
+    assert response.json()["source"] == "manual"
+
+
+def test_create_candidate_feedback(client, monkeypatch) -> None:
+    monkeypatch.setattr(service_deps, "get_feedback_service", override_feedback_service)
+
+    response = client.post(
+        "/api/candidates/candidate-001/feedbacks",
+        json={"note_text": "安排下一轮", "author_name": "Evan"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["note_text"] == "安排下一轮"
+    assert response.json()["author_name"] == "Evan"
+
+
+def test_create_candidate_email_draft(client, monkeypatch) -> None:
+    monkeypatch.setattr(service_deps, "get_email_draft_service", override_email_draft_service)
+
+    response = client.post(
+        "/api/candidates/candidate-001/email-drafts",
+        json={"draft_type": "advance"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["draft_type"] == "advance"
+    assert response.json()["subject"] == "advance subject"

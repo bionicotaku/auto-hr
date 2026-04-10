@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import CandidateDetailPage from "@/app/candidates/[candidateId]/page";
 import { Providers } from "@/app/providers";
+import type { CandidateDetailDto } from "@/lib/api/types";
 
 function renderWithProviders(node: ReactElement) {
   return render(<Providers>{node}</Providers>);
@@ -173,6 +174,155 @@ describe("Candidate detail page", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "加载失败" })).toBeInTheDocument();
       expect(screen.getByText("网络连接失败")).toBeInTheDocument();
+    });
+  });
+
+  it("supports status, tag, feedback, and email draft actions", async () => {
+    const detailPayload: CandidateDetailDto = {
+      candidate_id: "candidate-001",
+      job: {
+        job_id: "job-001",
+        title: "AI Recruiter",
+      },
+      raw_input: {
+        raw_text_input: "Candidate raw input",
+        documents: [],
+      },
+      normalized_profile: {
+        identity: {
+          full_name: "Ada Lovelace",
+          current_title: "Recruiting Lead",
+          current_company: "Auto HR",
+          location_text: "Remote",
+          email: "ada@example.com",
+          phone: "123456",
+          linkedin_url: "https://linkedin.example/ada",
+        },
+        profile_summary: {
+          professional_summary_raw: "Built hiring systems",
+          professional_summary_normalized: "Built hiring systems for global teams",
+          years_of_total_experience: 8,
+          years_of_relevant_experience: 6,
+          seniority_level: "Lead",
+        },
+        work_experiences: [],
+        educations: [],
+        skills: {},
+        employment_preferences: {},
+        application_answers: [],
+        additional_information: {},
+      },
+      rubric_results: [],
+      supervisor_summary: {
+        hard_requirement_overall: "all_pass",
+        overall_score_5: 4.5,
+        overall_score_percent: 90,
+        ai_summary: "Strong recruiting operator",
+        evidence_points: ["Built structured interview loops"],
+        recommendation: "advance",
+        tags: [
+          {
+            id: "tag-001",
+            name: "高匹配",
+            source: "ai",
+          },
+        ],
+      },
+      action_context: {
+        current_status: "pending",
+        feedbacks: [],
+        email_drafts: [],
+      },
+    };
+
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+
+      if (url.includes("/api/candidates/candidate-001") && method === "GET") {
+        return mockJsonResponse(detailPayload);
+      }
+
+      if (url.includes("/status") && method === "PATCH") {
+        detailPayload.action_context.current_status = "in_progress";
+        return mockJsonResponse({
+          candidate_id: "candidate-001",
+          current_status: "in_progress",
+        });
+      }
+
+      if (url.includes("/tags") && method === "POST") {
+        detailPayload.supervisor_summary.tags.push({
+          id: "tag-002",
+          name: "优先跟进",
+          source: "manual",
+        });
+        return mockJsonResponse(detailPayload.supervisor_summary.tags[detailPayload.supervisor_summary.tags.length - 1]);
+      }
+
+      if (url.includes("/feedbacks") && method === "POST") {
+        detailPayload.action_context.feedbacks.unshift({
+          id: "feedback-001",
+          author_name: "Evan",
+          note_text: "安排下一轮",
+          created_at: "2026-04-10T01:00:00Z",
+        });
+        return mockJsonResponse(detailPayload.action_context.feedbacks[0]);
+      }
+
+      if (url.includes("/email-drafts") && method === "POST") {
+        detailPayload.action_context.email_drafts.unshift({
+          id: "draft-001",
+          draft_type: "offer",
+          subject: "offer subject",
+          body: "offer body",
+          created_at: "2026-04-10T01:00:00Z",
+          updated_at: "2026-04-10T01:00:00Z",
+        });
+        return mockJsonResponse(detailPayload.action_context.email_drafts[0]);
+      }
+
+      throw new Error(`Unhandled request: ${method} ${url}`);
+    });
+
+    renderWithProviders(await CandidateDetailPage({ params: Promise.resolve({ candidateId: "candidate-001" }) }));
+
+    await screen.findByRole("heading", { name: "Ada Lovelace" });
+
+    fireEvent.change(screen.getByLabelText("候选人状态选择"), {
+      target: { value: "in_progress" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "更新状态" }));
+    await waitFor(() => {
+      expect(screen.getByText("处理中")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("人工标签输入框"), {
+      target: { value: "优先跟进" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "添加标签" }));
+    await waitFor(() => {
+      expect(screen.getAllByText("优先跟进")).toHaveLength(2);
+    });
+
+    fireEvent.change(screen.getByLabelText("备注署名输入框"), {
+      target: { value: "Evan" },
+    });
+    fireEvent.change(screen.getByLabelText("备注输入框"), {
+      target: { value: "安排下一轮" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "记录备注" }));
+    await waitFor(() => {
+      expect(screen.getByText("安排下一轮")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("邮件草稿类型选择"), {
+      target: { value: "offer" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "生成邮件草稿" }));
+    await waitFor(() => {
+      expect(screen.getByText("offer subject")).toBeInTheDocument();
+      expect(screen.getByText("offer body")).toBeInTheDocument();
     });
   });
 });
