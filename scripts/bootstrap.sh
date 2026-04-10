@@ -21,5 +21,10 @@ mkdir -p \
   packages/ui \
   packages/config
 
+if [ -f "apps/web/package.json" ]; then
+  echo "[bootstrap] installing workspace node dependencies"
+  pnpm install
+fi
+
 echo "[bootstrap] workspace skeleton is ready"
 echo "[bootstrap] python runtime: ./.venv/bin/python"

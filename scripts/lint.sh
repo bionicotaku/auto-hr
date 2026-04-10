@@ -9,3 +9,8 @@ fi
 
 echo "[lint] running backend syntax checks"
 ./.venv/bin/python -m compileall apps/api/app apps/api/tests
+
+if [ -f "apps/web/package.json" ]; then
+  echo "[lint] running frontend typecheck"
+  pnpm --filter auto-hr-web typecheck
+fi
