@@ -63,6 +63,8 @@ class StubDraftWorkflow:
 
 def build_standardization_payload() -> dict:
     return {
+        "is_candidate_like": True,
+        "invalid_reason": None,
         "identity": {
             "full_name": "Ada Lovelace",
             "current_title": "Recruiting Lead",
@@ -182,6 +184,8 @@ def test_candidate_standardization_prompt_contains_required_context() -> None:
     assert "Candidate raw text" in prompt
     assert "JSON Schema" in prompt
     assert "缺失字段也必须保留" in prompt
+    assert "is_candidate_like" in prompt
+    assert "invalid_reason" in prompt
 
 
 def test_standardize_workflow_supports_text_only_input() -> None:
@@ -237,7 +241,7 @@ def test_standardize_workflow_adds_input_files_when_documents_exist(tmp_path) ->
 
 
 def test_standardize_workflow_rejects_invalid_payload() -> None:
-    client = FakeStructuredClient({"identity": {}})
+    client = FakeStructuredClient({"is_candidate_like": True, "invalid_reason": None, "identity": {}})
     workflow = CandidateStandardizeWorkflow(client)
     prepared_input = PreparedCandidateImportInput(
         raw_text_input="Candidate raw text",
@@ -250,6 +254,50 @@ def test_standardize_workflow_rejects_invalid_payload() -> None:
 
     with pytest.raises(ValueError):
         asyncio.run(workflow.run(prepared_input))
+
+
+def test_candidate_standardization_schema_supports_invalid_candidate_payload() -> None:
+    schema = CandidateStandardizationSchema.model_validate(
+        {
+            "is_candidate_like": False,
+            "invalid_reason": "输入是无关广告文本。",
+            "identity": {
+                "full_name": None,
+                "current_title": None,
+                "current_company": None,
+                "location_text": None,
+                "email": None,
+                "phone": None,
+                "linkedin_url": None,
+            },
+            "profile_summary": {
+                "professional_summary_raw": None,
+                "professional_summary_normalized": None,
+                "years_of_total_experience": None,
+                "years_of_relevant_experience": None,
+                "seniority_level": None,
+            },
+            "work_experiences": [],
+            "educations": [],
+            "skills": {"skills_raw": [], "skills_normalized": []},
+            "employment_preferences": {
+                "work_authorization": None,
+                "requires_sponsorship": None,
+                "willing_to_relocate": None,
+                "preferred_locations": [],
+                "preferred_work_modes": [],
+            },
+            "application_answers": [],
+            "documents": [],
+            "additional_information": {
+                "uncategorized_highlights": [],
+                "parser_notes": [],
+            },
+        }
+    )
+
+    assert schema.is_candidate_like is False
+    assert schema.invalid_reason == "输入是无关广告文本。"
 
 
 @pytest.mark.anyio

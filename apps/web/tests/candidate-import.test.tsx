@@ -174,6 +174,38 @@ describe("Candidate import page", () => {
     });
   });
 
+  it("accepts dropped pdf files instead of letting the browser open them", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(
+      mockJsonResponse({
+        job_id: "job-001",
+        title: "AI Recruiter",
+        summary: "Own the recruiting workflow.",
+        lifecycle_status: "active",
+      }),
+    );
+
+    renderWithProviders(
+      await CandidateImportPage({ params: Promise.resolve({ jobId: "job-001" }) }),
+    );
+
+    const dropzoneText = await screen.findByText("选择 PDF 文件");
+    const dropzone = dropzoneText.closest("label");
+    const file = new File(["resume"], "resume.pdf", { type: "application/pdf" });
+
+    expect(dropzone).not.toBeNull();
+
+    fireEvent.drop(dropzone as HTMLElement, {
+      dataTransfer: {
+        files: [file],
+        types: ["Files"],
+      },
+    });
+
+    expect(await screen.findByText("resume.pdf")).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
   it("keeps entered text and navigates back to jobs on cancel", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValueOnce(

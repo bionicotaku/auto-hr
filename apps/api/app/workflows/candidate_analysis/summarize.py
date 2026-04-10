@@ -47,7 +47,4 @@ class CandidateSummarizeWorkflow:
         if abs(result.overall_score_percent - overall_score_percent) > 0.01:
             raise DomainValidationError("Supervisor overall_score_percent did not match computed value.")
 
-        if hard_requirement_overall in {"has_fail", "has_borderline"} and result.recommendation == "advance":
-            raise DomainValidationError("Supervisor recommendation cannot advance a candidate with failed or borderline hard requirements.")
-
         return result

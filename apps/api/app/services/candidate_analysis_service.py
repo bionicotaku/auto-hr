@@ -22,6 +22,7 @@ from app.workflows.candidate_analysis.score_items import (
 )
 from app.workflows.candidate_analysis.standardize import CandidateStandardizeWorkflow
 from app.workflows.candidate_analysis.summarize import CandidateSummarizeWorkflow
+from app.workflows.candidate_analysis.validity import validate_candidate_for_persistence
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,7 @@ class CandidateAnalysisService:
         try:
             logger.info("Candidate stage started: stage=candidate_standardize result=start job_id=%s", job_id)
             standardized_candidate = await self.standardize_workflow.run(prepared_input)
+            validate_candidate_for_persistence(standardized_candidate)
             logger.info("Candidate stage finished: stage=candidate_standardize result=success job_id=%s", job_id)
             rubric_items = [self._serialize_rubric_item(item) for item in job.rubric_items]
             logger.info("Candidate stage started: stage=candidate_score_items result=start job_id=%s", job_id)

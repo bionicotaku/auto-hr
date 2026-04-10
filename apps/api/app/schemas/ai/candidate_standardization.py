@@ -3,6 +3,29 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field
 
 
+PLACEHOLDER_CANDIDATE_NAMES = {
+    "unknown",
+    "unknown candidate",
+    "candidate",
+    "n/a",
+    "na",
+    "none",
+    "未提供",
+    "未知",
+    "未知候选人",
+    "候选人",
+}
+
+
+def is_effective_candidate_name(full_name: str | None) -> bool:
+    if full_name is None:
+        return False
+    normalized = " ".join(full_name.strip().split())
+    if len(normalized) < 2:
+        return False
+    return normalized.casefold() not in PLACEHOLDER_CANDIDATE_NAMES
+
+
 class CandidateIdentitySchema(BaseModel):
     full_name: str | None = None
     current_title: str | None = None
@@ -71,6 +94,8 @@ class CandidateAdditionalInformationSchema(BaseModel):
 
 
 class CandidateStandardizationSchema(BaseModel):
+    is_candidate_like: bool
+    invalid_reason: str | None = None
     identity: CandidateIdentitySchema
     profile_summary: CandidateProfileSummarySchema
     work_experiences: list[CandidateWorkExperienceSchema] = Field(default_factory=list)

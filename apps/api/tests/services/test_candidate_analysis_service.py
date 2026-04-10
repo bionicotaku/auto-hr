@@ -92,6 +92,8 @@ def build_prepared_input() -> PreparedCandidateImportInput:
 def build_standardized_candidate() -> CandidateStandardizationSchema:
     return CandidateStandardizationSchema.model_validate(
         {
+            "is_candidate_like": True,
+            "invalid_reason": None,
             "identity": {
                 "full_name": "Ada Lovelace",
                 "current_title": "Recruiting Lead",
@@ -376,3 +378,67 @@ async def test_candidate_analysis_service_cleans_temp_dir_after_standardize_fail
     assert not temp_root.exists() or list(temp_root.iterdir()) == []
     assert "stage=candidate_standardize result=start" in caplog.text
     assert "stage=candidate_analysis result=failure" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_candidate_analysis_service_rejects_non_candidate_like_input(db_session) -> None:
+    job = create_job(db_session, lifecycle_status="active")
+    base_candidate = build_standardized_candidate()
+    invalid_candidate = base_candidate.model_copy(
+        update={
+            "is_candidate_like": False,
+            "invalid_reason": "输入是无关文本。",
+            "identity": base_candidate.identity.model_copy(update={"full_name": None}),
+        }
+    )
+    score_items_workflow = StubScoreItemsWorkflow(
+        result=build_score_items_result(
+            weighted_result_ids=(job.rubric_items[0].id, job.rubric_items[1].id),
+            hard_requirement_result_id=job.rubric_items[2].id,
+        )
+    )
+    summarize_workflow = StubSummarizeWorkflow(result=build_supervisor_summary())
+    service = CandidateAnalysisService(
+        db_session,
+        JobRepository(),
+        StubImportPrepareWorkflow(build_prepared_input()),
+        StubStandardizeWorkflow(invalid_candidate),
+        score_items_workflow,
+        summarize_workflow,
+    )
+
+    with pytest.raises(DomainValidationError, match="无关文本"):
+        await service.analyze_candidate(job_id=job.id, raw_text_input="spam", files=[])
+
+    assert score_items_workflow.calls == []
+    assert summarize_workflow.calls == []
+
+
+@pytest.mark.anyio
+async def test_candidate_analysis_service_rejects_missing_effective_name(db_session) -> None:
+    job = create_job(db_session, lifecycle_status="active")
+    base_candidate = build_standardized_candidate()
+    nameless_candidate = base_candidate.model_copy(
+        update={"identity": base_candidate.identity.model_copy(update={"full_name": "未知候选人"})}
+    )
+    score_items_workflow = StubScoreItemsWorkflow(
+        result=build_score_items_result(
+            weighted_result_ids=(job.rubric_items[0].id, job.rubric_items[1].id),
+            hard_requirement_result_id=job.rubric_items[2].id,
+        )
+    )
+    summarize_workflow = StubSummarizeWorkflow(result=build_supervisor_summary())
+    service = CandidateAnalysisService(
+        db_session,
+        JobRepository(),
+        StubImportPrepareWorkflow(build_prepared_input()),
+        StubStandardizeWorkflow(nameless_candidate),
+        score_items_workflow,
+        summarize_workflow,
+    )
+
+    with pytest.raises(DomainValidationError, match="候选人姓名"):
+        await service.analyze_candidate(job_id=job.id, raw_text_input="candidate text", files=[])
+
+    assert score_items_workflow.calls == []
+    assert summarize_workflow.calls == []

@@ -149,7 +149,7 @@ class CandidatePersistWorkflow:
         ]
         tag_data = [
             CandidateTagCreateData(tag_name=tag_name, tag_source="ai")
-            for tag_name in self._dedupe_tags(supervisor.tags)
+            for tag_name in self._build_ai_tags(supervisor.tags, supervisor.hard_requirement_overall)
         ]
         return candidate_data, profile_data, rubric_result_data, tag_data
 
@@ -197,3 +197,11 @@ class CandidatePersistWorkflow:
             seen.add(tag)
             deduped.append(tag)
         return deduped
+
+    def _build_ai_tags(self, supervisor_tags: list[str], hard_requirement_overall: str) -> list[str]:
+        default_tags: list[str] = []
+        if hard_requirement_overall == "has_fail":
+            default_tags.append("硬性要求未通过")
+        elif hard_requirement_overall == "has_borderline":
+            default_tags.append("需要复核")
+        return self._dedupe_tags([*supervisor_tags, *default_tags])

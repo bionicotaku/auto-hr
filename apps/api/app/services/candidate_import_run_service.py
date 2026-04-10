@@ -24,6 +24,7 @@ from app.workflows.candidate_analysis.score_items import (
 )
 from app.workflows.candidate_analysis.standardize import CandidateStandardizeWorkflow
 from app.workflows.candidate_analysis.summarize import CandidateSummarizeWorkflow
+from app.workflows.candidate_analysis.validity import validate_candidate_for_persistence
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +155,7 @@ class CandidateImportRunService:
 
             reporter.set_stage("standardizing", "正在标准化候选人信息")
             standardized_candidate = await self.standardize_workflow.run(prepared_input)
+            validate_candidate_for_persistence(standardized_candidate)
             reporter.record_ai_step("standardizing", "AI 已完成候选人标准化")
 
             reporter.set_stage("scoring", "正在逐项分析评估规范")

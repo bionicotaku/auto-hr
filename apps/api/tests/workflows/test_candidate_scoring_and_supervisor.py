@@ -29,6 +29,8 @@ from app.workflows.candidate_analysis.summarize import CandidateSummarizeWorkflo
 def build_standardized_candidate() -> CandidateStandardizationSchema:
     return CandidateStandardizationSchema.model_validate(
         {
+            "is_candidate_like": True,
+            "invalid_reason": None,
             "identity": {
                 "full_name": "Ada Lovelace",
                 "current_title": "Recruiting Lead",
@@ -406,7 +408,7 @@ def test_summarize_workflow_uses_computed_scores_and_returns_schema() -> None:
     assert "68.0" in client.calls[0]["prompt"]
 
 
-def test_summarize_workflow_rejects_advance_when_hard_requirement_is_not_all_pass() -> None:
+def test_summarize_workflow_allows_advance_when_hard_requirement_is_not_all_pass() -> None:
     client = FakeSupervisorClient(
         build_supervisor_payload(
             hard_requirement_overall="has_fail",
@@ -417,15 +419,16 @@ def test_summarize_workflow_rejects_advance_when_hard_requirement_is_not_all_pas
     )
     workflow = CandidateSummarizeWorkflow(client)
 
-    with pytest.raises(DomainValidationError, match="cannot advance"):
-        asyncio.run(
-            workflow.run(
-                job_title="AI Recruiter",
-                job_summary="Own hiring for AI teams.",
-                standardized_candidate=build_standardized_candidate(),
-                rubric_score_items=build_score_items_result(),
-                hard_requirement_overall="has_fail",
-                overall_score_5=2.2,
-                overall_score_percent=44.0,
-            )
+    result = asyncio.run(
+        workflow.run(
+            job_title="AI Recruiter",
+            job_summary="Own hiring for AI teams.",
+            standardized_candidate=build_standardized_candidate(),
+            rubric_score_items=build_score_items_result(),
+            hard_requirement_overall="has_fail",
+            overall_score_5=2.2,
+            overall_score_percent=44.0,
         )
+    )
+
+    assert result.recommendation == "advance"

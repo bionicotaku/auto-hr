@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -48,6 +48,34 @@ export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProp
     }
     return null;
   }, [isFormValid]);
+
+  useEffect(() => {
+    function isFileDrag(event: DragEvent) {
+      return Array.from(event.dataTransfer?.types ?? []).includes("Files");
+    }
+
+    function handleWindowDragOver(event: DragEvent) {
+      if (!isFileDrag(event)) {
+        return;
+      }
+      event.preventDefault();
+    }
+
+    function handleWindowDrop(event: DragEvent) {
+      if (!isFileDrag(event)) {
+        return;
+      }
+      event.preventDefault();
+    }
+
+    window.addEventListener("dragover", handleWindowDragOver);
+    window.addEventListener("drop", handleWindowDrop);
+
+    return () => {
+      window.removeEventListener("dragover", handleWindowDragOver);
+      window.removeEventListener("drop", handleWindowDrop);
+    };
+  }, []);
 
   function handleSelectFiles(fileList: FileList | null) {
     if (!fileList) {

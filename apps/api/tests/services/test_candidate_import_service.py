@@ -94,6 +94,8 @@ def create_active_job(db_session) -> Job:
 def build_standardized_candidate() -> CandidateStandardizationSchema:
     return CandidateStandardizationSchema.model_validate(
         {
+            "is_candidate_like": True,
+            "invalid_reason": None,
             "identity": {
                 "full_name": "Ada Lovelace",
                 "current_title": "Recruiting Lead",
@@ -168,16 +170,21 @@ def build_rubric_result(job: Job) -> CandidateRubricScoreItemsResult:
     )
 
 
-def build_supervisor_summary() -> CandidateSupervisorSchema:
+def build_supervisor_summary(
+    *,
+    hard_requirement_overall: str = "all_pass",
+    recommendation: str = "advance",
+    tags: list[str] | None = None,
+) -> CandidateSupervisorSchema:
     return CandidateSupervisorSchema.model_validate(
         {
-            "hard_requirement_overall": "all_pass",
+            "hard_requirement_overall": hard_requirement_overall,
             "overall_score_5": 3.6,
             "overall_score_percent": 72.0,
             "ai_summary": "Strong candidate with clear execution examples.",
             "evidence_points": ["Led hiring", "Worked with stakeholders"],
-            "tags": ["operator", "operator", "recruiting"],
-            "recommendation": "advance",
+            "tags": tags or ["operator", "operator", "recruiting"],
+            "recommendation": recommendation,
         }
     )
 
@@ -258,6 +265,73 @@ async def test_candidate_import_service_persists_candidate_and_moves_files(db_se
     candidate = db_session.get(Candidate, response.candidate_id)
     assert candidate is not None
     assert response.job_id == job.id
+    assert sorted(tag.tag_name for tag in candidate.tags) == ["operator", "recruiting"]
+
+
+@pytest.mark.anyio
+async def test_candidate_import_service_persists_candidate_with_failed_hard_requirements(db_session) -> None:
+    settings = get_settings()
+    job = create_active_job(db_session)
+    temp_path = create_temp_document(settings.temp_upload_dir_path, "request-001")
+    bundle = build_bundle(job, temp_path)
+    bundle = CandidateAnalysisBundle(
+        prepared_input=bundle.prepared_input,
+        standardized_candidate=bundle.standardized_candidate,
+        rubric_score_items=bundle.rubric_score_items,
+        supervisor_summary=build_supervisor_summary(
+            hard_requirement_overall="has_fail",
+            recommendation="advance",
+            tags=["高匹配"],
+        ),
+    )
+    service = CandidateImportService(
+        db_session,
+        StubCandidateAnalysisService(bundle=bundle),
+        CandidatePersistWorkflow(settings=settings, candidate_repository=CandidateRepository()),
+    )
+
+    response = await service.import_candidate(
+        job_id=job.id,
+        raw_text_input="Candidate raw text",
+        files=[],
+    )
+
+    candidate = db_session.get(Candidate, response.candidate_id)
+    assert candidate is not None
+    assert sorted(tag.tag_name for tag in candidate.tags) == ["硬性要求未通过", "高匹配"]
+
+
+@pytest.mark.anyio
+async def test_candidate_import_service_adds_manual_review_tag_for_borderline_hard_requirements(db_session) -> None:
+    settings = get_settings()
+    job = create_active_job(db_session)
+    temp_path = create_temp_document(settings.temp_upload_dir_path, "request-001")
+    bundle = build_bundle(job, temp_path)
+    bundle = CandidateAnalysisBundle(
+        prepared_input=bundle.prepared_input,
+        standardized_candidate=bundle.standardized_candidate,
+        rubric_score_items=bundle.rubric_score_items,
+        supervisor_summary=build_supervisor_summary(
+            hard_requirement_overall="has_borderline",
+            recommendation="advance",
+            tags=["需要复核", "operator"],
+        ),
+    )
+    service = CandidateImportService(
+        db_session,
+        StubCandidateAnalysisService(bundle=bundle),
+        CandidatePersistWorkflow(settings=settings, candidate_repository=CandidateRepository()),
+    )
+
+    response = await service.import_candidate(
+        job_id=job.id,
+        raw_text_input="Candidate raw text",
+        files=[],
+    )
+
+    candidate = db_session.get(Candidate, response.candidate_id)
+    assert candidate is not None
+    assert sorted(tag.tag_name for tag in candidate.tags) == ["operator", "需要复核"]
 
 
 @pytest.mark.anyio

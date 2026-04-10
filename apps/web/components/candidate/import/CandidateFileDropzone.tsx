@@ -1,4 +1,4 @@
-import { ChangeEvent } from "react";
+import { ChangeEvent, DragEvent, useState } from "react";
 
 import { Card } from "@/components/ui/Card";
 
@@ -15,9 +15,37 @@ export function CandidateFileDropzone({
   onSelectFiles,
   onRemoveFile,
 }: CandidateFileDropzoneProps) {
+  const [isDragging, setIsDragging] = useState(false);
+
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     onSelectFiles(event.target.files);
     event.target.value = "";
+  }
+
+  function handleDragEnter(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(true);
+  }
+
+  function handleDragOver(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+  }
+
+  function handleDrop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+    onSelectFiles(event.dataTransfer.files);
   }
 
   return (
@@ -28,8 +56,16 @@ export function CandidateFileDropzone({
       </div>
 
       <label
-        className="flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition hover:border-slate-400 hover:bg-white"
+        className={`flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed px-6 py-8 text-center transition ${
+          isDragging
+            ? "border-slate-700 bg-slate-100"
+            : "border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-white"
+        }`}
         htmlFor="candidate-import-files"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         <span className="text-base font-semibold text-slate-900">选择 PDF 文件</span>
         <span className="mt-2 text-sm leading-6 text-slate-600">支持拖拽或点击选择，单次最多 4 个文件。</span>
