@@ -1,0 +1,14 @@
+{
+  "name": "auto-hr",
+  "private": true,
+  "packageManager": "pnpm@10.17.0",
+  "scripts": {
+    "bootstrap": "./scripts/bootstrap.sh",
+    "dev": "./scripts/dev.sh",
+    "dev:web": "./scripts/dev-web.sh",
+    "dev:api": "./scripts/dev-api.sh",
+    "lint": "./scripts/lint.sh",
+    "format": "./scripts/format.sh",
+    "test": "./scripts/test.sh"
+  }
+}
