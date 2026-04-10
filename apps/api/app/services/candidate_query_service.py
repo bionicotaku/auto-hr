@@ -1,4 +1,6 @@
 import json
+from pathlib import Path
+from typing import Callable
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -27,7 +29,12 @@ class CandidateQueryService:
         self.session = session
         self.candidate_repository = candidate_repository
 
-    def get_candidate_detail(self, candidate_id: str) -> CandidateDetailResponse:
+    def get_candidate_detail(
+        self,
+        candidate_id: str,
+        *,
+        build_document_url: Callable[[str, str], str],
+    ) -> CandidateDetailResponse:
         try:
             candidate = self.candidate_repository.get_candidate(self.session, candidate_id)
         except LookupError as exc:
@@ -55,9 +62,8 @@ class CandidateQueryService:
                         id=document.id,
                         document_type=document.document_type,
                         filename=document.filename,
-                        storage_path=document.storage_path,
+                        file_url=build_document_url(candidate.id, document.id),
                         mime_type=document.mime_type,
-                        extracted_text=document.extracted_text,
                         page_count=document.page_count,
                         upload_order=document.upload_order,
                     )
@@ -123,7 +129,6 @@ class CandidateQueryService:
             ],
             supervisor_summary=CandidateDetailSupervisorResponse(
                 hard_requirement_overall=candidate.hard_requirement_overall,
-                overall_score_5=candidate.overall_score_5,
                 overall_score_percent=candidate.overall_score_percent,
                 ai_summary=candidate.ai_summary,
                 evidence_points=self._load_json(candidate.evidence_points_json, list),
@@ -161,6 +166,19 @@ class CandidateQueryService:
                 ],
             ),
         )
+
+    def get_candidate_document(self, *, candidate_id: str, document_id: str):
+        try:
+            document = self.candidate_repository.get_candidate_document(
+                self.session,
+                candidate_id=candidate_id,
+                document_id=document_id,
+            )
+        except LookupError as exc:
+            raise NotFoundError(f"Candidate document {document_id} not found.") from exc
+        if not Path(document.storage_path).exists():
+            raise NotFoundError(f"Candidate document {document_id} file is missing.")
+        return document
 
     def _load_json(self, value: str, expected_type: type[list] | type[dict]) -> list[Any] | dict[str, Any]:
         try:

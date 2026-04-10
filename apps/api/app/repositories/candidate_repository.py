@@ -32,7 +32,6 @@ class CandidateCreateData:
     seniority_level: str | None
     raw_text_input: str | None
     hard_requirement_overall: str
-    overall_score_5: float | None
     overall_score_percent: float | None
     ai_summary: str
     evidence_points_json: list[str]
@@ -56,7 +55,6 @@ class CandidateDocumentCreateData:
     filename: str
     storage_path: str
     mime_type: str
-    extracted_text: str
     page_count: int | None
     upload_order: int
 
@@ -119,7 +117,6 @@ class CandidateRepository:
             seniority_level=candidate_data.seniority_level,
             raw_text_input=candidate_data.raw_text_input,
             hard_requirement_overall=candidate_data.hard_requirement_overall,
-            overall_score_5=candidate_data.overall_score_5,
             overall_score_percent=candidate_data.overall_score_percent,
             ai_summary=candidate_data.ai_summary,
             evidence_points_json=json.dumps(candidate_data.evidence_points_json, ensure_ascii=False),
@@ -155,7 +152,6 @@ class CandidateRepository:
                     filename=item.filename,
                     storage_path=item.storage_path,
                     mime_type=item.mime_type,
-                    extracted_text=item.extracted_text,
                     page_count=item.page_count,
                     upload_order=item.upload_order,
                 )
@@ -205,6 +201,22 @@ class CandidateRepository:
         if candidate is None:
             raise LookupError(candidate_id)
         return candidate
+
+    def get_candidate_document(
+        self,
+        session: Session,
+        *,
+        candidate_id: str,
+        document_id: str,
+    ) -> CandidateDocument:
+        statement = select(CandidateDocument).where(
+            CandidateDocument.id == document_id,
+            CandidateDocument.candidate_id == candidate_id,
+        )
+        document = session.scalar(statement)
+        if document is None:
+            raise LookupError(document_id)
+        return document
 
     def update_candidate_status(self, session: Session, candidate: Candidate, current_status: str) -> Candidate:
         candidate.current_status = current_status

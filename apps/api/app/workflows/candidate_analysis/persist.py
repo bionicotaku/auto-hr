@@ -1,3 +1,4 @@
+import re
 import shutil
 import uuid
 from dataclasses import dataclass
@@ -36,12 +37,14 @@ class CandidatePersistWorkflow:
         candidate_id = str(uuid.uuid4())
         final_dir = self.settings.upload_dir_path / "candidates" / candidate_id
         temp_root = self._temp_root(bundle.prepared_input.temp_request_id)
+        standardized = bundle.standardized_candidate
 
         try:
             final_documents = self._promote_documents(
                 candidate_id=candidate_id,
                 documents=bundle.prepared_input.documents,
                 final_dir=final_dir,
+                candidate_name=standardized.identity.full_name,
             )
         except Exception as exc:
             self._remove_dir(final_dir)
@@ -108,7 +111,6 @@ class CandidatePersistWorkflow:
             seniority_level=standardized.profile_summary.seniority_level,
             raw_text_input=bundle.prepared_input.raw_text_input,
             hard_requirement_overall=supervisor.hard_requirement_overall,
-            overall_score_5=supervisor.overall_score_5,
             overall_score_percent=supervisor.overall_score_percent,
             ai_summary=supervisor.ai_summary,
             evidence_points_json=supervisor.evidence_points,
@@ -159,21 +161,23 @@ class CandidatePersistWorkflow:
         candidate_id: str,
         documents,
         final_dir: Path,
+        candidate_name: str | None,
     ) -> list[CandidateDocumentCreateData]:
         final_dir.mkdir(parents=True, exist_ok=True)
         promoted_documents: list[CandidateDocumentCreateData] = []
+        safe_candidate_name = self._sanitize_candidate_filename(candidate_name)
 
         for index, document in enumerate(documents, start=1):
             source_path = Path(document.storage_path)
-            destination_path = final_dir / source_path.name
+            destination_filename = f"{safe_candidate_name}-{index}.pdf"
+            destination_path = final_dir / destination_filename
             shutil.move(source_path.as_posix(), destination_path.as_posix())
             promoted_documents.append(
                 CandidateDocumentCreateData(
                     document_type="resume" if index == 1 else "other",
-                    filename=document.filename,
+                    filename=destination_filename,
                     storage_path=str(destination_path),
                     mime_type=document.mime_type,
-                    extracted_text=document.extracted_text,
                     page_count=document.page_count,
                     upload_order=document.upload_order,
                 )
@@ -205,3 +209,10 @@ class CandidatePersistWorkflow:
         elif hard_requirement_overall == "has_borderline":
             default_tags.append("需要复核")
         return self._dedupe_tags([*supervisor_tags, *default_tags])
+
+    def _sanitize_candidate_filename(self, candidate_name: str | None) -> str:
+        raw_name = (candidate_name or "").strip() or "candidate"
+        normalized = raw_name.replace("_", "-")
+        normalized = re.sub(r"[^\w\u4e00-\u9fff-]+", "-", normalized, flags=re.UNICODE)
+        normalized = re.sub(r"-{2,}", "-", normalized).strip("-")
+        return normalized or "candidate"

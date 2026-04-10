@@ -27,7 +27,6 @@ class CandidateDocument(Base):
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     storage_path: Mapped[str] = mapped_column(Text, nullable=False)
     mime_type: Mapped[str] = mapped_column(String(120), nullable=False)
-    extracted_text: Mapped[str] = mapped_column(Text, nullable=False)
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     upload_order: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

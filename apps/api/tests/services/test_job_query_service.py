@@ -96,7 +96,6 @@ def create_candidate(
         seniority_level="Lead",
         raw_text_input="Raw text",
         hard_requirement_overall="all_pass",
-        overall_score_5=round(score / 20, 2),
         overall_score_percent=score,
         ai_summary=ai_summary,
         evidence_points_json=json.dumps(["Evidence"]),

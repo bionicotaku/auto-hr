@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from fastapi.responses import FileResponse
 
 from app.api import service_deps
 from app.api.deps import AppSettings, DbSession
@@ -22,9 +23,40 @@ def get_candidate_detail(
     candidate_id: str,
     session: DbSession,
     settings: AppSettings,
+    request: Request,
 ) -> CandidateDetailResponse:
     service = service_deps.get_candidate_query_service(session, settings)
-    return service.get_candidate_detail(candidate_id)
+    return service.get_candidate_detail(
+        candidate_id,
+        build_document_url=lambda owner_candidate_id, document_id: str(
+            request.url_for(
+                "get_candidate_document_file",
+                candidate_id=owner_candidate_id,
+                document_id=document_id,
+            )
+        ),
+    )
+
+
+@router.get(
+    "/{candidate_id}/documents/{document_id}/file",
+    response_class=FileResponse,
+    name="get_candidate_document_file",
+)
+def get_candidate_document_file(
+    candidate_id: str,
+    document_id: str,
+    session: DbSession,
+    settings: AppSettings,
+) -> FileResponse:
+    service = service_deps.get_candidate_query_service(session, settings)
+    document = service.get_candidate_document(candidate_id=candidate_id, document_id=document_id)
+    return FileResponse(
+        path=document.storage_path,
+        media_type=document.mime_type,
+        filename=document.filename,
+        content_disposition_type="inline",
+    )
 
 
 @router.patch("/{candidate_id}/status", response_model=CandidateStatusUpdateResponse)

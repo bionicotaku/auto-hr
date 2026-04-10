@@ -1,7 +1,7 @@
 import { ApiError } from "@/lib/api/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
-const API_REQUEST_TIMEOUT_MS = 120000;
+const API_REQUEST_TIMEOUT_MS = 180000;
 
 export function buildApiUrl(path: string) {
   return API_BASE_URL ? `${API_BASE_URL}${path}` : path;

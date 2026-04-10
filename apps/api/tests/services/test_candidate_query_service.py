@@ -76,7 +76,6 @@ def create_candidate_detail_graph(db_session) -> Candidate:
         seniority_level="Lead",
         raw_text_input="Candidate raw input",
         hard_requirement_overall="all_pass",
-        overall_score_5=4.5,
         overall_score_percent=90,
         ai_summary="Strong recruiting operator",
         evidence_points_json=json.dumps(["Built structured interview loops"], ensure_ascii=False),
@@ -149,10 +148,9 @@ def create_candidate_detail_graph(db_session) -> Candidate:
         CandidateDocument(
             candidate_id=candidate.id,
             document_type="resume",
-            filename="resume.pdf",
+            filename="Ada-Lovelace-1.pdf",
             storage_path="data/uploads/candidates/ada/resume.pdf",
             mime_type="application/pdf",
-            extracted_text="Resume extracted text",
             page_count=2,
             upload_order=1,
         )
@@ -213,12 +211,16 @@ def test_candidate_query_service_returns_complete_detail(db_session) -> None:
     candidate = create_candidate_detail_graph(db_session)
     service = CandidateQueryService(db_session, CandidateRepository())
 
-    response = service.get_candidate_detail(candidate.id)
+    response = service.get_candidate_detail(
+        candidate.id,
+        build_document_url=lambda owner_candidate_id, document_id: f"http://testserver/api/candidates/{owner_candidate_id}/documents/{document_id}/file",
+    )
 
     assert response.candidate_id == candidate.id
     assert response.job.title == "AI Recruiter"
     assert response.raw_input.raw_text_input == "Candidate raw input"
-    assert response.raw_input.documents[0].filename == "resume.pdf"
+    assert response.raw_input.documents[0].filename == "Ada-Lovelace-1.pdf"
+    assert response.raw_input.documents[0].file_url.endswith("/documents/" + response.raw_input.documents[0].id + "/file")
     assert response.normalized_profile.identity.full_name == "Ada Lovelace"
     assert response.normalized_profile.work_experiences[0]["company_name"] == "Auto HR"
     assert response.rubric_results[0].rubric_name == "执行力"
@@ -234,4 +236,4 @@ def test_candidate_query_service_raises_not_found_for_missing_candidate(db_sessi
     service = CandidateQueryService(db_session, CandidateRepository())
 
     with pytest.raises(NotFoundError):
-        service.get_candidate_detail("candidate-missing")
+        service.get_candidate_detail("candidate-missing", build_document_url=lambda *_args: "")

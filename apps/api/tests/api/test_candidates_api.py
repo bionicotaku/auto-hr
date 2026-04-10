@@ -2,7 +2,7 @@ from app.api import service_deps
 
 
 class StubCandidateQueryService:
-    def get_candidate_detail(self, candidate_id: str):
+    def get_candidate_detail(self, candidate_id: str, *, build_document_url):
         return {
             "candidate_id": candidate_id,
             "job": {
@@ -15,10 +15,9 @@ class StubCandidateQueryService:
                     {
                         "id": "doc-001",
                         "document_type": "resume",
-                        "filename": "resume.pdf",
-                        "storage_path": "data/uploads/candidates/candidate-001/resume.pdf",
+                        "filename": "Ada-Lovelace-1.pdf",
+                        "file_url": build_document_url(candidate_id, "doc-001"),
                         "mime_type": "application/pdf",
-                        "extracted_text": "Resume extracted text",
                         "page_count": 2,
                         "upload_order": 1,
                     }
@@ -77,7 +76,6 @@ class StubCandidateQueryService:
             ],
             "supervisor_summary": {
                 "hard_requirement_overall": "all_pass",
-                "overall_score_5": 4.5,
                 "overall_score_percent": 90,
                 "ai_summary": "Strong recruiting operator",
                 "evidence_points": ["Built structured interview loops"],
@@ -112,6 +110,17 @@ class StubCandidateQueryService:
                 ],
             },
         }
+
+    def get_candidate_document(self, *, candidate_id: str, document_id: str):
+        return type(
+            "StubDocument",
+            (),
+            {
+                "storage_path": __file__,
+                "mime_type": "application/pdf",
+                "filename": "Ada-Lovelace-1.pdf",
+            },
+        )()
 
 
 def override_candidate_query_service(_session, _settings):
@@ -170,11 +179,21 @@ def test_get_candidate_detail_returns_complete_payload(client, monkeypatch) -> N
     body = response.json()
     assert body["candidate_id"] == "candidate-001"
     assert body["job"]["title"] == "AI Recruiter"
-    assert body["raw_input"]["documents"][0]["filename"] == "resume.pdf"
+    assert body["raw_input"]["documents"][0]["filename"] == "Ada-Lovelace-1.pdf"
+    assert body["raw_input"]["documents"][0]["file_url"].endswith("/api/candidates/candidate-001/documents/doc-001/file")
     assert body["normalized_profile"]["identity"]["full_name"] == "Ada Lovelace"
     assert body["rubric_results"][0]["rubric_name"] == "执行力"
     assert body["supervisor_summary"]["recommendation"] == "advance"
     assert body["action_context"]["feedbacks"][0]["note_text"] == "值得继续跟进"
+
+
+def test_get_candidate_document_file_returns_pdf(client, monkeypatch) -> None:
+    monkeypatch.setattr(service_deps, "get_candidate_query_service", override_candidate_query_service)
+
+    response = client.get("/api/candidates/candidate-001/documents/doc-001/file")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/pdf")
 
 
 def test_update_candidate_status(client, monkeypatch) -> None:

@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
@@ -19,55 +18,43 @@ type JobDetailWorkspaceProps = {
   jobId: string;
 };
 
-function readCandidateQuery(searchParams: { get(name: string): string | null; getAll(name: string): string[] }): JobCandidateListQueryDto {
-  const sort = searchParams.get("sort");
-  const status = searchParams.get("status");
-  const q = searchParams.get("q") ?? "";
-  const tags = searchParams.getAll("tags");
-
-  return {
-    sort:
-      sort === "score_asc" || sort === "created_at_desc" || sort === "created_at_asc"
-        ? sort
-        : "score_desc",
-    status:
-      status === "pending" ||
-      status === "in_progress" ||
-      status === "rejected" ||
-      status === "offer_sent" ||
-      status === "hired"
-        ? status
-        : "all",
-    tags,
-    q,
-  };
-}
+const DEFAULT_CANDIDATE_QUERY: JobCandidateListQueryDto = {
+  sort: "score_desc",
+  status: "all",
+  tags: [],
+  q: "",
+};
 
 export function JobDetailWorkspace({ jobId }: JobDetailWorkspaceProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [sort, setSort] = useState<JobCandidateListQueryDto["sort"]>(DEFAULT_CANDIDATE_QUERY.sort);
+  const [status, setStatus] = useState<JobCandidateListQueryDto["status"]>(DEFAULT_CANDIDATE_QUERY.status);
+  const [selectedTags, setSelectedTags] = useState<string[]>(DEFAULT_CANDIDATE_QUERY.tags);
+  const [searchQuery, setSearchQuery] = useState(DEFAULT_CANDIDATE_QUERY.q);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(DEFAULT_CANDIDATE_QUERY.q);
 
-  const query = useMemo(() => readCandidateQuery(searchParams), [searchParams]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [searchQuery]);
+
+  const query = useMemo(
+    () => ({
+      sort,
+      status,
+      tags: selectedTags,
+      q: debouncedSearchQuery,
+    }),
+    [debouncedSearchQuery, selectedTags, sort, status],
+  );
   const detailQuery = useJobDetailQuery(jobId);
   const candidatesQuery = useJobCandidatesQuery(jobId, query);
 
-  function updateQuery(next: Partial<JobCandidateListQueryDto>) {
-    const merged = { ...query, ...next };
-    const params = new URLSearchParams();
-    params.set("sort", merged.sort);
-    params.set("status", merged.status);
-    if (merged.q.trim()) {
-      params.set("q", merged.q.trim());
-    }
-    for (const tag of merged.tags) {
-      params.append("tags", tag);
-    }
-    const serialized = params.toString();
-    router.replace(serialized ? `${pathname}?${serialized}` : pathname);
-  }
-
-  if (detailQuery.isLoading || candidatesQuery.isLoading) {
+  if (detailQuery.isLoading || (candidatesQuery.isLoading && !candidatesQuery.data)) {
     return (
       <AppShell
         title="岗位详情"
@@ -127,21 +114,28 @@ export function JobDetailWorkspace({ jobId }: JobDetailWorkspaceProps) {
       <div className="space-y-6">
         <JobSummaryPanel job={detailQuery.data} />
         <CandidateListToolbar
-          sort={query.sort}
-          status={query.status}
-          selectedTags={query.tags}
-          query={query.q}
+          sort={sort}
+          status={status}
+          selectedTags={selectedTags}
+          query={searchQuery}
           availableTags={candidatesQuery.data.available_tags}
-          onSortChange={(value) => updateQuery({ sort: value })}
-          onStatusChange={(value) => updateQuery({ status: value })}
-          onQueryChange={(value) => updateQuery({ q: value })}
+          onSortChange={setSort}
+          onStatusChange={setStatus}
+          onQueryChange={setSearchQuery}
           onToggleTag={(tag) => {
-            const nextTags = query.tags.includes(tag)
-              ? query.tags.filter((item) => item !== tag)
-              : [...query.tags, tag];
-            updateQuery({ tags: nextTags });
+            setSelectedTags((currentTags) =>
+              currentTags.includes(tag)
+                ? currentTags.filter((item) => item !== tag)
+                : [...currentTags, tag],
+            );
           }}
         />
+        {candidatesQuery.isFetching ? (
+          <div className="inline-flex items-center gap-2 text-sm text-slate-500">
+            <Spinner className="h-4 w-4 border-slate-300 border-t-slate-800" />
+            正在更新候选人列表
+          </div>
+        ) : null}
         <CandidateList items={candidatesQuery.data.items} />
       </div>
     </AppShell>

@@ -66,6 +66,7 @@ export function useJobCandidatesQuery(jobId: string, query: JobCandidateListQuer
     queryKey: ["job-candidates", jobId, query.sort, query.status, query.tags.join(","), query.q],
     queryFn: () => getJobCandidates(jobId, query),
     enabled: Boolean(jobId),
+    placeholderData: (previousData) => previousData,
   });
 }
 

@@ -124,7 +124,6 @@ def build_standardization_payload() -> dict:
                 "document_type": "resume",
                 "filename": "resume.pdf",
                 "storage_path": "/tmp/resume.pdf",
-                "text_extracted": "resume text",
             }
         ],
         "additional_information": {
@@ -226,7 +225,6 @@ def test_standardize_workflow_adds_input_files_when_documents_exist(tmp_path) ->
                 storage_path=str(pdf_path),
                 mime_type="application/pdf",
                 upload_order=1,
-                extracted_text="resume text",
                 page_count=1,
             )
         ],
@@ -241,7 +239,13 @@ def test_standardize_workflow_adds_input_files_when_documents_exist(tmp_path) ->
 
 
 def test_standardize_workflow_rejects_invalid_payload() -> None:
-    client = FakeStructuredClient({"is_candidate_like": True, "invalid_reason": None, "identity": {}})
+    client = FakeStructuredClient(
+        {
+            "is_candidate_like": True,
+            "invalid_reason": None,
+            "identity": {},
+        }
+    )
     workflow = CandidateStandardizeWorkflow(client)
     prepared_input = PreparedCandidateImportInput(
         raw_text_input="Candidate raw text",

@@ -131,7 +131,6 @@ describe("Workspace pages", () => {
           rubric_results: [],
           supervisor_summary: {
             hard_requirement_overall: "all_pass",
-            overall_score_5: 4.5,
             overall_score_percent: 90,
             ai_summary: "Strong recruiting operator",
             evidence_points: ["Built structured interview loops"],

@@ -6,7 +6,7 @@ from fastapi import UploadFile
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.exceptions import ConflictError, DomainValidationError, NotFoundError
-from app.files.pdf_extract import extract_pdf_text
+from app.files.pdf_extract import read_pdf_page_count
 from app.files.temp_manager import TempImportManager
 from app.repositories.analysis_run_repository import AnalysisRunCreateData, AnalysisRunRepository
 from app.repositories.job_repository import JobRepository
@@ -172,8 +172,7 @@ class CandidateImportRunService:
             )
 
             hard_requirement_overall = self._compute_hard_requirement_overall(rubric_score_items)
-            overall_score_5 = self._compute_overall_score_5(rubric_score_items, rubric_items)
-            overall_score_percent = round(overall_score_5 / 5 * 100, 2)
+            overall_score_percent = self._compute_overall_score_percent(rubric_score_items, rubric_items)
 
             reporter.set_stage("summarizing", "正在生成候选人汇总结论")
             supervisor_summary = await self.summarize_workflow.run(
@@ -182,7 +181,6 @@ class CandidateImportRunService:
                 standardized_candidate=standardized_candidate,
                 rubric_score_items=rubric_score_items,
                 hard_requirement_overall=hard_requirement_overall,
-                overall_score_5=overall_score_5,
                 overall_score_percent=overall_score_percent,
             )
             reporter.record_ai_step("summarizing", "AI 已完成候选人汇总")
@@ -227,15 +225,13 @@ class CandidateImportRunService:
         documents: list[PreparedCandidateDocumentInput] = []
         for item in documents_payload:
             storage_path = str(item["storage_path"])
-            extracted = extract_pdf_text(Path(storage_path))
             documents.append(
                 PreparedCandidateDocumentInput(
                     filename=str(item["filename"]),
                     storage_path=storage_path,
                     mime_type=str(item["mime_type"]),
                     upload_order=int(item["upload_order"]),
-                    extracted_text=extracted.text,
-                    page_count=extracted.page_count,
+                    page_count=read_pdf_page_count(Path(storage_path)),
                 )
             )
         return PreparedCandidateImportInput(
@@ -259,7 +255,7 @@ class CandidateImportRunService:
             return "has_borderline"
         return "all_pass"
 
-    def _compute_overall_score_5(self, rubric_score_items, rubric_items: list[dict]) -> float:
+    def _compute_overall_score_percent(self, rubric_score_items, rubric_items: list[dict]) -> float:
         weight_by_id = {
             item["id"]: item["weight_normalized"] or 0
             for item in rubric_items
@@ -268,7 +264,7 @@ class CandidateImportRunService:
         total = 0.0
         for result in rubric_score_items.weighted_results:
             total += result.score_0_to_5 * weight_by_id.get(result.job_rubric_item_id, 0)
-        return round(total, 4)
+        return round(total / 5 * 100, 2)
 
     def _cleanup_temp_request(self, request_id: str | None) -> None:
         if not request_id:

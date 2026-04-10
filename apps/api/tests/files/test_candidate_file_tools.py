@@ -6,7 +6,7 @@ from fastapi import UploadFile
 from pypdf import PdfWriter
 
 from app.core.config import get_settings
-from app.files.pdf_extract import extract_pdf_text
+from app.files.pdf_extract import read_pdf_page_count
 from app.files.temp_manager import TempImportManager
 
 
@@ -92,11 +92,8 @@ def test_temp_import_manager_rejects_non_pdf(tmp_path, monkeypatch) -> None:
         upload.file.close()
 
 
-def test_extract_pdf_text_returns_text_and_page_count(tmp_path) -> None:
+def test_read_pdf_page_count_returns_page_count(tmp_path) -> None:
     pdf_path = tmp_path / "sample.pdf"
     pdf_path.write_bytes(build_pdf_bytes())
 
-    extracted = extract_pdf_text(pdf_path)
-
-    assert extracted.page_count == 1
-    assert isinstance(extracted.text, str)
+    assert read_pdf_page_count(pdf_path) == 1

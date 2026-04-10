@@ -13,9 +13,8 @@ class CandidateDetailRawDocumentResponse(BaseModel):
     id: str
     document_type: Literal["resume", "other"]
     filename: str
-    storage_path: str
+    file_url: str
     mime_type: str
-    extracted_text: str
     page_count: int | None
     upload_order: int
 
@@ -75,7 +74,6 @@ class CandidateDetailTagResponse(BaseModel):
 
 class CandidateDetailSupervisorResponse(BaseModel):
     hard_requirement_overall: Literal["all_pass", "has_borderline", "has_fail"]
-    overall_score_5: float | None
     overall_score_percent: float | None
     ai_summary: str
     evidence_points: list[str]

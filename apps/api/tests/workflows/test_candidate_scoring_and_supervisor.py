@@ -90,7 +90,6 @@ def build_standardized_candidate() -> CandidateStandardizationSchema:
                     "document_type": "resume",
                     "filename": "resume.pdf",
                     "storage_path": "/tmp/resume.pdf",
-                    "text_extracted": "resume text",
                 }
             ],
             "additional_information": {
@@ -207,13 +206,11 @@ class FakeSupervisorClient:
 def build_supervisor_payload(
     *,
     hard_requirement_overall: str = "all_pass",
-    overall_score_5: float = 4.0,
     overall_score_percent: float = 80.0,
     recommendation: str = "advance",
 ) -> dict:
     return {
         "hard_requirement_overall": hard_requirement_overall,
-        "overall_score_5": overall_score_5,
         "overall_score_percent": overall_score_percent,
         "ai_summary": "Strong recruiter with evidence across core criteria.",
         "evidence_points": ["Built systems", "Improved funnel speed"],
@@ -370,13 +367,11 @@ def test_supervisor_prompt_contains_computed_scores() -> None:
         standardized_candidate=build_standardized_candidate().model_dump(mode="json"),
         rubric_results=build_score_items_result().model_dump(mode="json"),
         hard_requirement_overall="has_borderline",
-        overall_score_5=3.4,
         overall_score_percent=68.0,
     )
 
     assert "AI Recruiter" in prompt
     assert "has_borderline" in prompt
-    assert "3.4" in prompt
     assert "68.0" in prompt
 
 
@@ -384,7 +379,6 @@ def test_summarize_workflow_uses_computed_scores_and_returns_schema() -> None:
     client = FakeSupervisorClient(
         build_supervisor_payload(
             hard_requirement_overall="has_borderline",
-            overall_score_5=3.4,
             overall_score_percent=68.0,
             recommendation="manual_review",
         )
@@ -398,13 +392,11 @@ def test_summarize_workflow_uses_computed_scores_and_returns_schema() -> None:
             standardized_candidate=build_standardized_candidate(),
             rubric_score_items=build_score_items_result(),
             hard_requirement_overall="has_borderline",
-            overall_score_5=3.4,
             overall_score_percent=68.0,
         )
     )
 
     assert result.recommendation == "manual_review"
-    assert "3.4" in client.calls[0]["prompt"]
     assert "68.0" in client.calls[0]["prompt"]
 
 
@@ -412,7 +404,6 @@ def test_summarize_workflow_allows_advance_when_hard_requirement_is_not_all_pass
     client = FakeSupervisorClient(
         build_supervisor_payload(
             hard_requirement_overall="has_fail",
-            overall_score_5=2.2,
             overall_score_percent=44.0,
             recommendation="advance",
         )
@@ -426,7 +417,6 @@ def test_summarize_workflow_allows_advance_when_hard_requirement_is_not_all_pass
             standardized_candidate=build_standardized_candidate(),
             rubric_score_items=build_score_items_result(),
             hard_requirement_overall="has_fail",
-            overall_score_5=2.2,
             overall_score_percent=44.0,
         )
     )

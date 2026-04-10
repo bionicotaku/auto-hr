@@ -81,7 +81,6 @@ def create_candidate_detail_graph(db_session) -> Candidate:
         seniority_level="Lead",
         raw_text_input="Candidate raw input",
         hard_requirement_overall="all_pass",
-        overall_score_5=4.5,
         overall_score_percent=90,
         ai_summary="Strong recruiting operator",
         evidence_points_json=json.dumps(["Built structured interview loops"], ensure_ascii=False),
@@ -106,10 +105,9 @@ def create_candidate_detail_graph(db_session) -> Candidate:
         CandidateDocument(
             candidate_id=candidate.id,
             document_type="resume",
-            filename="resume.pdf",
+            filename="Ada-Lovelace-1.pdf",
             storage_path="data/uploads/candidates/ada/resume.pdf",
             mime_type="application/pdf",
-            extracted_text="Resume extracted text",
             page_count=2,
             upload_order=1,
         )

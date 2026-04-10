@@ -81,7 +81,6 @@ def test_candidate_repository_creates_full_candidate_graph(db_session) -> None:
             seniority_level="Lead",
             raw_text_input="Candidate raw text",
             hard_requirement_overall="all_pass",
-            overall_score_5=4.2,
             overall_score_percent=84.0,
             ai_summary="Strong candidate",
             evidence_points_json=["Built systems"],
@@ -98,10 +97,9 @@ def test_candidate_repository_creates_full_candidate_graph(db_session) -> None:
         document_data=[
             CandidateDocumentCreateData(
                 document_type="resume",
-                filename="resume.pdf",
+                filename="Ada-Lovelace-1.pdf",
                 storage_path="/tmp/resume.pdf",
                 mime_type="application/pdf",
-                extracted_text="resume text",
                 page_count=1,
                 upload_order=1,
             )

@@ -52,6 +52,7 @@ describe("Job detail pages", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("renders the jobs page with real job cards", () => {
@@ -124,7 +125,7 @@ describe("Job detail pages", () => {
     );
   });
 
-  it("updates the URL when filters change", async () => {
+  it("updates the candidate list without changing the URL", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock
       .mockResolvedValueOnce(
@@ -144,21 +145,90 @@ describe("Job detail pages", () => {
           items: [],
           available_tags: ["高匹配", "需要复核"],
         }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          items: [],
+          available_tags: ["高匹配", "需要复核", "制造业经验", "管理经验", "本地候选人"],
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          items: [],
+          available_tags: ["高匹配", "需要复核", "制造业经验", "管理经验", "本地候选人"],
+        }),
       );
 
     renderWithProviders(await JobDetailPage({ params: Promise.resolve({ jobId: "job-001" }) }));
 
     await screen.findByRole("heading", { name: "AI Recruiter" });
+    await screen.findByRole("button", { name: "高匹配" });
 
     fireEvent.change(screen.getByLabelText("候选人排序"), {
       target: { value: "score_asc" },
     });
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/jobs/job-001?sort=score_asc&status=all");
+      expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(
+        "/api/jobs/job-001/candidates?sort=score_asc&status=all",
+      );
     });
 
+    await screen.findByRole("button", { name: "高匹配" });
     fireEvent.click(screen.getByRole("button", { name: "高匹配" }));
-    expect(replaceMock).toHaveBeenCalledWith("/jobs/job-001?sort=score_desc&status=all&tags=%E9%AB%98%E5%8C%B9%E9%85%8D");
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(
+        "/api/jobs/job-001/candidates?sort=score_asc&status=all&tags=%E9%AB%98%E5%8C%B9%E9%85%8D",
+      );
+    });
+
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps search input responsive and debounces candidate requests", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          job_id: "job-001",
+          title: "AI Recruiter",
+          summary: "Own hiring",
+          description_text: "JD body",
+          lifecycle_status: "active",
+          candidate_count: 1,
+          rubric_summary: [{ name: "Execution", criterion_type: "weighted", weight_label: "70%" }],
+          structured_info_summary: [{ label: "地点", value: "Remote" }],
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          items: [],
+          available_tags: [],
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          items: [],
+          available_tags: [],
+        }),
+      );
+
+    renderWithProviders(await JobDetailPage({ params: Promise.resolve({ jobId: "job-001" }) }));
+
+    const input = await screen.findByLabelText("搜索候选人");
+
+    fireEvent.change(input, { target: { value: "Ada" } });
+    fireEvent.change(input, { target: { value: "Ada " } });
+
+    expect(input).toHaveValue("Ada ");
+    expect(replaceMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(
+        "/api/jobs/job-001/candidates?sort=score_desc&status=all&q=Ada",
+      );
+    });
+    expect(replaceMock).not.toHaveBeenCalled();
   });
 });

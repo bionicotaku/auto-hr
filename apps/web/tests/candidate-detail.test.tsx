@@ -42,10 +42,9 @@ describe("Candidate detail page", () => {
             {
               id: "doc-001",
               document_type: "resume",
-              filename: "resume.pdf",
-              storage_path: "data/uploads/candidates/candidate-001/resume.pdf",
+              filename: "Ada-Lovelace-1.pdf",
+              file_url: "http://localhost:8000/api/candidates/candidate-001/documents/doc-001/file",
               mime_type: "application/pdf",
-              extracted_text: "Resume extracted text",
               page_count: 2,
               upload_order: 1,
             },
@@ -72,6 +71,9 @@ describe("Candidate detail page", () => {
             {
               company_name: "Auto HR",
               title: "Recruiting Lead",
+              start_date: "2021-01",
+              end_date: "2024-03",
+              is_current: false,
               description_normalized: "Led recruiting operations",
             },
           ],
@@ -117,7 +119,6 @@ describe("Candidate detail page", () => {
         ],
         supervisor_summary: {
           hard_requirement_overall: "all_pass",
-          overall_score_5: 4.5,
           overall_score_percent: 90,
           ai_summary: "Strong recruiting operator",
           evidence_points: ["Built structured interview loops"],
@@ -163,6 +164,76 @@ describe("Candidate detail page", () => {
       expect(screen.getByRole("heading", { name: "逐项分析" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "汇总结论" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "处理状态" })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "查看原文件" })).toHaveAttribute(
+        "href",
+        "http://localhost:8000/api/candidates/candidate-001/documents/doc-001/file",
+      );
+      expect(screen.getByText("2021-01 ~ 2024-03")).toBeInTheDocument();
+    });
+  });
+
+  it("renders candidate detail panels in the expected vertical order", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      mockJsonResponse({
+        candidate_id: "candidate-001",
+        job: {
+          job_id: "job-001",
+          title: "AI Recruiter",
+        },
+        raw_input: {
+          raw_text_input: "Candidate raw input",
+          documents: [],
+        },
+        normalized_profile: {
+          identity: {
+            full_name: "Ada Lovelace",
+            current_title: "Recruiting Lead",
+            current_company: "Auto HR",
+            location_text: "Remote",
+            email: "ada@example.com",
+            phone: "123456",
+            linkedin_url: "https://linkedin.example/ada",
+          },
+          profile_summary: {
+            professional_summary_raw: "Built hiring systems",
+            professional_summary_normalized: "Built hiring systems for global teams",
+            years_of_total_experience: 8,
+            years_of_relevant_experience: 6,
+            seniority_level: "Lead",
+          },
+          work_experiences: [],
+          educations: [],
+          skills: {},
+          employment_preferences: {},
+          application_answers: [],
+          additional_information: {},
+        },
+        rubric_results: [],
+        supervisor_summary: {
+          hard_requirement_overall: "all_pass",
+          overall_score_percent: 90,
+          ai_summary: "Strong recruiting operator",
+          evidence_points: ["Built structured interview loops"],
+          recommendation: "advance",
+          tags: [],
+        },
+        action_context: {
+          current_status: "pending",
+          feedbacks: [],
+          email_drafts: [],
+        },
+      }),
+    );
+
+    renderWithProviders(await CandidateDetailPage({ params: Promise.resolve({ candidateId: "candidate-001" }) }));
+
+    await waitFor(() => {
+      const headings = screen
+        .getAllByRole("heading", { level: 2 })
+        .map((node) => node.textContent?.trim())
+        .filter(Boolean);
+
+      expect(headings).toEqual(["标准化信息", "原始输入", "汇总结论", "逐项分析", "处理状态"]);
     });
   });
 
@@ -216,7 +287,6 @@ describe("Candidate detail page", () => {
       rubric_results: [],
       supervisor_summary: {
         hard_requirement_overall: "all_pass",
-        overall_score_5: 4.5,
         overall_score_percent: 90,
         ai_summary: "Strong recruiting operator",
         evidence_points: ["Built structured interview loops"],

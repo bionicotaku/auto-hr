@@ -806,8 +806,6 @@ Candidate 分析流最终输出：
     
 - `storage_path`
     
-- `text_extracted`
-    
 
 ### I. 补充信息区 `additional_information`
 
@@ -968,6 +966,7 @@ analysis run 会立即返回 `run_id`，前端通过 `SSE` 观察进度。
 - 缺失字段填空
 - 多余信息进入补充区
 - 只有 `is_candidate_like = true` 且提取出有效姓名时，才允许进入后续入库链路
+- 不做本地 PDF 文本提取，也不保存提取文本；原始 PDF 直接作为 LLM 文件 input
     
 
 ---

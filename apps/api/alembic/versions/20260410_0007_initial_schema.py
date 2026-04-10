@@ -1,22 +1,74 @@
-"""Add candidate-related tables.
+"""Initial schema.
 
-Revision ID: 20260409_0003
-Revises: 20260409_0002
-Create Date: 2026-04-09 22:45:00
+Revision ID: 20260410_0007
+Revises:
+Create Date: 2026-04-10 05:30:00.000000
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "20260409_0003"
-down_revision: Union[str, None] = "20260409_0002"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "20260410_0007"
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    op.create_table(
+        "jobs",
+        sa.Column("id", sa.String(length=36), nullable=False),
+        sa.Column("lifecycle_status", sa.String(length=20), nullable=False),
+        sa.Column("creation_mode", sa.String(length=32), nullable=False),
+        sa.Column("title", sa.String(length=200), nullable=False),
+        sa.Column("summary", sa.Text(), nullable=False),
+        sa.Column("description_text", sa.Text(), nullable=False),
+        sa.Column("structured_info_json", sa.JSON(), nullable=False),
+        sa.Column("original_description_input", sa.Text(), nullable=True),
+        sa.Column("original_form_input_json", sa.JSON(), nullable=True),
+        sa.Column("editor_history_summary", sa.Text(), nullable=True),
+        sa.Column("editor_recent_messages_json", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("finalized_at", sa.DateTime(timezone=True), nullable=True),
+        sa.CheckConstraint(
+            "creation_mode IN ('from_description', 'from_form')",
+            name="ck_jobs_creation_mode",
+        ),
+        sa.CheckConstraint(
+            "lifecycle_status IN ('draft', 'active')",
+            name="ck_jobs_lifecycle_status",
+        ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+
+    op.create_table(
+        "job_rubric_items",
+        sa.Column("id", sa.String(length=36), nullable=False),
+        sa.Column("job_id", sa.String(length=36), nullable=False),
+        sa.Column("sort_order", sa.Integer(), nullable=False),
+        sa.Column("name", sa.String(length=120), nullable=False),
+        sa.Column("description", sa.Text(), nullable=False),
+        sa.Column("criterion_type", sa.String(length=32), nullable=False),
+        sa.Column("weight_input", sa.Float(), nullable=False),
+        sa.Column("weight_normalized", sa.Float(), nullable=True),
+        sa.Column("agent_prompt_text", sa.Text(), nullable=False),
+        sa.Column("evidence_guidance_text", sa.Text(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("scoring_standard_items_json", sa.JSON(), nullable=False),
+        sa.CheckConstraint(
+            "criterion_type IN ('weighted', 'hard_requirement')",
+            name="ck_job_rubric_items_criterion_type",
+        ),
+        sa.ForeignKeyConstraint(["job_id"], ["jobs.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_job_rubric_items_job_id", "job_rubric_items", ["job_id"], unique=False)
+
     op.create_table(
         "candidates",
         sa.Column("id", sa.String(length=36), nullable=False),
@@ -35,7 +87,6 @@ def upgrade() -> None:
         sa.Column("seniority_level", sa.String(length=80), nullable=True),
         sa.Column("raw_text_input", sa.Text(), nullable=True),
         sa.Column("hard_requirement_overall", sa.String(length=32), nullable=False),
-        sa.Column("overall_score_5", sa.Float(), nullable=True),
         sa.Column("overall_score_percent", sa.Float(), nullable=True),
         sa.Column("ai_summary", sa.Text(), nullable=False),
         sa.Column("evidence_points_json", sa.Text(), nullable=False),
@@ -83,7 +134,6 @@ def upgrade() -> None:
         sa.Column("filename", sa.String(length=255), nullable=False),
         sa.Column("storage_path", sa.Text(), nullable=False),
         sa.Column("mime_type", sa.String(length=120), nullable=False),
-        sa.Column("extracted_text", sa.Text(), nullable=False),
         sa.Column("page_count", sa.Integer(), nullable=True),
         sa.Column("upload_order", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
@@ -193,22 +243,91 @@ def upgrade() -> None:
         unique=False,
     )
 
+    op.create_table(
+        "analysis_runs",
+        sa.Column("id", sa.String(length=36), nullable=False),
+        sa.Column("run_type", sa.String(length=32), nullable=False),
+        sa.Column("resource_id", sa.String(length=36), nullable=False),
+        sa.Column("status", sa.String(length=16), nullable=False),
+        sa.Column("current_stage", sa.String(length=64), nullable=False),
+        sa.Column("current_ai_step", sa.Integer(), nullable=False),
+        sa.Column("total_ai_steps", sa.Integer(), nullable=False),
+        sa.Column("last_event_index", sa.Integer(), nullable=False),
+        sa.Column("result_resource_type", sa.String(length=32), nullable=True),
+        sa.Column("result_resource_id", sa.String(length=36), nullable=True),
+        sa.Column("error_message", sa.Text(), nullable=True),
+        sa.Column("payload_json", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.CheckConstraint(
+            "run_type IN ('job_finalize', 'candidate_import')",
+            name="ck_analysis_runs_run_type",
+        ),
+        sa.CheckConstraint(
+            "status IN ('queued', 'running', 'completed', 'failed')",
+            name="ck_analysis_runs_status",
+        ),
+        sa.CheckConstraint(
+            "result_resource_type IN ('job', 'candidate') OR result_resource_type IS NULL",
+            name="ck_analysis_runs_result_resource_type",
+        ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_analysis_runs_resource_id", "analysis_runs", ["resource_id"], unique=False)
+    op.create_index("ix_analysis_runs_run_type", "analysis_runs", ["run_type"], unique=False)
+    op.create_index("ix_analysis_runs_status", "analysis_runs", ["status"], unique=False)
+
+    op.create_table(
+        "analysis_run_events",
+        sa.Column("id", sa.String(length=36), nullable=False),
+        sa.Column("run_id", sa.String(length=36), nullable=False),
+        sa.Column("event_index", sa.Integer(), nullable=False),
+        sa.Column("event_type", sa.String(length=24), nullable=False),
+        sa.Column("payload_json", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(["run_id"], ["analysis_runs.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_analysis_run_events_run_id", "analysis_run_events", ["run_id"], unique=False)
+
 
 def downgrade() -> None:
+    op.drop_index("ix_analysis_run_events_run_id", table_name="analysis_run_events")
+    op.drop_table("analysis_run_events")
+
+    op.drop_index("ix_analysis_runs_status", table_name="analysis_runs")
+    op.drop_index("ix_analysis_runs_run_type", table_name="analysis_runs")
+    op.drop_index("ix_analysis_runs_resource_id", table_name="analysis_runs")
+    op.drop_table("analysis_runs")
+
     op.drop_index("ix_candidate_email_drafts_candidate_id", table_name="candidate_email_drafts")
     op.drop_table("candidate_email_drafts")
+
     op.drop_index("ix_candidate_feedbacks_candidate_id", table_name="candidate_feedbacks")
     op.drop_table("candidate_feedbacks")
+
     op.drop_index("ix_candidate_tags_candidate_id", table_name="candidate_tags")
     op.drop_table("candidate_tags")
+
     op.drop_index(
         "ix_candidate_rubric_results_job_rubric_item_id",
         table_name="candidate_rubric_results",
     )
-    op.drop_index("ix_candidate_rubric_results_candidate_id", table_name="candidate_rubric_results")
+    op.drop_index(
+        "ix_candidate_rubric_results_candidate_id",
+        table_name="candidate_rubric_results",
+    )
     op.drop_table("candidate_rubric_results")
+
     op.drop_index("ix_candidate_documents_candidate_id", table_name="candidate_documents")
     op.drop_table("candidate_documents")
+
     op.drop_table("candidate_profiles")
+
     op.drop_index("ix_candidates_job_id", table_name="candidates")
     op.drop_table("candidates")
+
+    op.drop_index("ix_job_rubric_items_job_id", table_name="job_rubric_items")
+    op.drop_table("job_rubric_items")
+
+    op.drop_table("jobs")

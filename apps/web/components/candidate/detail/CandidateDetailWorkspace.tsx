@@ -64,17 +64,13 @@ export function CandidateDetailWorkspace({ candidateId }: CandidateDetailWorkspa
       }
     >
       <div className="space-y-6">
-        <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-          <CandidateRawInputPanel rawInput={detail.raw_input} />
-          <CandidateNormalizedPanel normalizedProfile={detail.normalized_profile} />
-        </div>
-        <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-          <CandidateRubricResultsPanel results={detail.rubric_results} />
-          <CandidateSupervisorPanel
-            supervisorSummary={detail.supervisor_summary}
-            jobTitle={detail.job.title}
-          />
-        </div>
+        <CandidateNormalizedPanel normalizedProfile={detail.normalized_profile} />
+        <CandidateRawInputPanel rawInput={detail.raw_input} />
+        <CandidateSupervisorPanel
+          supervisorSummary={detail.supervisor_summary}
+          jobTitle={detail.job.title}
+        />
+        <CandidateRubricResultsPanel results={detail.rubric_results} />
         <CandidateActionPanel
           candidateId={detail.candidate_id}
           actionContext={detail.action_context}

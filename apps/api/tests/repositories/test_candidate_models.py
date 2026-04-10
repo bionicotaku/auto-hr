@@ -66,7 +66,6 @@ def create_candidate(db_session) -> tuple[Candidate, JobRubricItem]:
         seniority_level="Lead",
         raw_text_input="Candidate raw text",
         hard_requirement_overall="all_pass",
-        overall_score_5=4.5,
         overall_score_percent=90,
         ai_summary="Strong candidate",
         evidence_points_json=json.dumps(["Built teams"]),
@@ -96,10 +95,9 @@ def test_candidate_related_models_support_basic_crud(db_session) -> None:
         CandidateDocument(
             candidate_id=candidate.id,
             document_type="resume",
-            filename="resume.pdf",
+            filename="Ada-Lovelace-1.pdf",
             storage_path="data/uploads/candidates/a/resume.pdf",
             mime_type="application/pdf",
-            extracted_text="resume text",
             page_count=1,
             upload_order=1,
         )
@@ -198,7 +196,6 @@ def test_candidate_status_constraint_is_enforced(db_session) -> None:
             seniority_level=None,
             raw_text_input=None,
             hard_requirement_overall="all_pass",
-            overall_score_5=None,
             overall_score_percent=None,
             ai_summary="summary",
             evidence_points_json="[]",

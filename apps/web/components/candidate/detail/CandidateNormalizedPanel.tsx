@@ -28,6 +28,29 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
   );
 }
 
+function formatExperiencePeriod(experience: Record<string, unknown>) {
+  const startDate = typeof experience.start_date === "string" ? experience.start_date.trim() : "";
+  const endDate = typeof experience.end_date === "string" ? experience.end_date.trim() : "";
+  const isCurrent = experience.is_current === true;
+
+  if (!startDate && !endDate && !isCurrent) {
+    return null;
+  }
+
+  const endLabel = isCurrent ? "至今" : endDate;
+
+  if (startDate && endLabel) {
+    return `${startDate} ~ ${endLabel}`;
+  }
+  if (startDate) {
+    return startDate;
+  }
+  if (endLabel) {
+    return endLabel;
+  }
+  return null;
+}
+
 export function CandidateNormalizedPanel({ normalizedProfile }: CandidateNormalizedPanelProps) {
   const identity = normalizedProfile.identity;
   const profileSummary = normalizedProfile.profile_summary;
@@ -89,11 +112,18 @@ export function CandidateNormalizedPanel({ normalizedProfile }: CandidateNormali
           <div className="space-y-3">
             {normalizedProfile.work_experiences.map((experience, index) => (
               <div key={`experience-${index}`} className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                <p className="text-sm font-semibold text-slate-900">
-                  {typeof experience.title === "string" && experience.title.trim()
-                    ? experience.title
-                    : "未命名经历"}
-                </p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {typeof experience.title === "string" && experience.title.trim()
+                      ? experience.title
+                      : "未命名经历"}
+                  </p>
+                  {formatExperiencePeriod(experience) ? (
+                    <p className="text-right text-xs text-slate-500">
+                      {formatExperiencePeriod(experience)}
+                    </p>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-sm text-slate-600">
                   {typeof experience.company_name === "string" ? experience.company_name : ""}
                 </p>

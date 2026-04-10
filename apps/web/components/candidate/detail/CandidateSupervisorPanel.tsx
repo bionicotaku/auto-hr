@@ -49,13 +49,7 @@ export function CandidateSupervisorPanel({
         </span>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">总分（5 分）</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-            {supervisorSummary.overall_score_5 !== null ? supervisorSummary.overall_score_5.toFixed(1) : "--"}
-          </p>
-        </div>
+      <div className="grid gap-3 sm:grid-cols-1">
         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">总分（百分制）</p>
           <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">

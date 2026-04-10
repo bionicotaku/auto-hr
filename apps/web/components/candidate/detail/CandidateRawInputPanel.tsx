@@ -30,21 +30,27 @@ export function CandidateRawInputPanel({ rawInput }: CandidateRawInputPanelProps
           <div className="space-y-3">
             {rawInput.documents.map((document) => (
               <div key={document.id} className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-slate-900">{document.filename}</p>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
-                    {documentTypeLabel(document.document_type)}
-                  </span>
-                  {document.page_count !== null ? (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-900">{document.filename}</p>
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
-                      {document.page_count} 页
+                      {documentTypeLabel(document.document_type)}
                     </span>
-                  ) : null}
+                    {document.page_count !== null ? (
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
+                        {document.page_count} 页
+                      </span>
+                    ) : null}
+                  </div>
+                  <a
+                    href={document.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-medium text-slate-700 underline decoration-slate-300 underline-offset-4 transition hover:text-slate-950"
+                  >
+                    查看原文件
+                  </a>
                 </div>
-                <p className="mt-2 text-xs text-slate-500">{document.storage_path}</p>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  {document.extracted_text.trim() || "未提取到文本内容。"}
-                </p>
               </div>
             ))}
           </div>

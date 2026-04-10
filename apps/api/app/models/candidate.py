@@ -55,7 +55,6 @@ class Candidate(Base):
     seniority_level: Mapped[str | None] = mapped_column(String(80), nullable=True)
     raw_text_input: Mapped[str | None] = mapped_column(Text, nullable=True)
     hard_requirement_overall: Mapped[str] = mapped_column(String(32), nullable=False)
-    overall_score_5: Mapped[float | None] = mapped_column(Float, nullable=True)
     overall_score_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
     ai_summary: Mapped[str] = mapped_column(Text, nullable=False)
     evidence_points_json: Mapped[str] = mapped_column(Text, nullable=False)

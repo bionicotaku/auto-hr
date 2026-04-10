@@ -32,7 +32,7 @@ describe("apiRequest", () => {
       status: 408,
     });
 
-    await vi.advanceTimersByTimeAsync(120000);
+    await vi.advanceTimersByTimeAsync(180000);
 
     await assertion;
   });

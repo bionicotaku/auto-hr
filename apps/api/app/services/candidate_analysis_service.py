@@ -98,8 +98,7 @@ class CandidateAnalysisService:
             )
             logger.info("Candidate stage finished: stage=candidate_score_items result=success job_id=%s", job_id)
             hard_requirement_overall = self._compute_hard_requirement_overall(rubric_score_items)
-            overall_score_5 = self._compute_overall_score_5(rubric_score_items, rubric_items)
-            overall_score_percent = round(overall_score_5 / 5 * 100, 2)
+            overall_score_percent = self._compute_overall_score_percent(rubric_score_items, rubric_items)
             logger.info("Candidate stage started: stage=candidate_summarize result=start job_id=%s", job_id)
             supervisor_summary = await self.summarize_workflow.run(
                 job_title=job.title,
@@ -107,7 +106,6 @@ class CandidateAnalysisService:
                 standardized_candidate=standardized_candidate,
                 rubric_score_items=rubric_score_items,
                 hard_requirement_overall=hard_requirement_overall,
-                overall_score_5=overall_score_5,
                 overall_score_percent=overall_score_percent,
             )
             logger.info("Candidate stage finished: stage=candidate_summarize result=success job_id=%s", job_id)
@@ -148,7 +146,7 @@ class CandidateAnalysisService:
             return "has_borderline"
         return "all_pass"
 
-    def _compute_overall_score_5(
+    def _compute_overall_score_percent(
         self,
         rubric_score_items: CandidateRubricScoreItemsResult,
         rubric_items: list[dict[str, Any]],
@@ -166,7 +164,7 @@ class CandidateAnalysisService:
                     f"Missing weight for weighted rubric result {result.job_rubric_item_id}."
                 )
             total += result.score_0_to_5 * weight
-        return round(total, 4)
+        return round(total / 5 * 100, 2)
 
     def _serialize_rubric_item(self, rubric_item) -> dict[str, Any]:
         return {

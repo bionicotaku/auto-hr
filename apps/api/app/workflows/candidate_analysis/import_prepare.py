@@ -1,7 +1,7 @@
 from fastapi import UploadFile
 
 from app.core.exceptions import DomainValidationError, NotFoundError
-from app.files.pdf_extract import extract_pdf_text
+from app.files.pdf_extract import read_pdf_page_count
 from app.files.temp_manager import TempImportManager
 from app.repositories.job_repository import JobRepository
 from app.schemas.ai.candidate_standardization import (
@@ -44,15 +44,13 @@ class CandidateImportPrepareWorkflow:
             saved_uploads = await self.temp_import_manager.save_uploads(context, files)
             documents: list[PreparedCandidateDocumentInput] = []
             for saved_upload in saved_uploads:
-                extracted = extract_pdf_text(saved_upload.stored_path)
                 documents.append(
                     PreparedCandidateDocumentInput(
                         filename=saved_upload.original_filename,
                         storage_path=str(saved_upload.stored_path),
                         mime_type=saved_upload.mime_type,
                         upload_order=saved_upload.upload_order,
-                        extracted_text=extracted.text,
-                        page_count=extracted.page_count,
+                        page_count=read_pdf_page_count(saved_upload.stored_path),
                     )
                 )
 

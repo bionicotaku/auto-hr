@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-5.4", alias="OPENAI_MODEL")
     openai_reasoning: str = Field(default="medium", alias="OPENAI_REASONING")
-    openai_timeout_seconds: float = Field(default=120.0, alias="OPENAI_TIMEOUT_SECONDS")
+    openai_timeout_seconds: float = Field(default=180.0, alias="OPENAI_TIMEOUT_SECONDS")
 
     database_url: str = Field(default="sqlite:///./data/app.db", alias="DATABASE_URL")
     data_dir: str = Field(default="./data", alias="DATA_DIR")

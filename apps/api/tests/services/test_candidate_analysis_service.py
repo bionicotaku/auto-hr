@@ -176,7 +176,6 @@ def build_supervisor_summary() -> CandidateSupervisorSchema:
     return CandidateSupervisorSchema.model_validate(
         {
             "hard_requirement_overall": "has_borderline",
-            "overall_score_5": 3.2,
             "overall_score_percent": 64.0,
             "ai_summary": "Promising operator with one borderline requirement.",
             "evidence_points": ["Built systems", "Global meetings"],
@@ -282,7 +281,6 @@ async def test_candidate_analysis_service_returns_bundle_without_writing_candida
 
     assert bundle.supervisor_summary.recommendation == "manual_review"
     assert summarize_workflow.calls[0]["hard_requirement_overall"] == "has_borderline"
-    assert summarize_workflow.calls[0]["overall_score_5"] == 3.2
     assert summarize_workflow.calls[0]["overall_score_percent"] == 64.0
     assert db_session.scalar(select(func.count()).select_from(Candidate)) == 0
 
@@ -438,6 +436,39 @@ async def test_candidate_analysis_service_rejects_missing_effective_name(db_sess
     )
 
     with pytest.raises(DomainValidationError, match="候选人姓名"):
+        await service.analyze_candidate(job_id=job.id, raw_text_input="candidate text", files=[])
+
+    assert score_items_workflow.calls == []
+    assert summarize_workflow.calls == []
+
+
+@pytest.mark.anyio
+async def test_candidate_analysis_service_rejects_multiple_detected_candidates(db_session) -> None:
+    job = create_job(db_session, lifecycle_status="active")
+    base_candidate = build_standardized_candidate()
+    multiple_candidates = base_candidate.model_copy(
+        update={
+            "invalid_reason": "资料中混入了多位候选人信息。",
+            "is_candidate_like": False,
+        }
+    )
+    score_items_workflow = StubScoreItemsWorkflow(
+        result=build_score_items_result(
+            weighted_result_ids=(job.rubric_items[0].id, job.rubric_items[1].id),
+            hard_requirement_result_id=job.rubric_items[2].id,
+        )
+    )
+    summarize_workflow = StubSummarizeWorkflow(result=build_supervisor_summary())
+    service = CandidateAnalysisService(
+        db_session,
+        JobRepository(),
+        StubImportPrepareWorkflow(build_prepared_input()),
+        StubStandardizeWorkflow(multiple_candidates),
+        score_items_workflow,
+        summarize_workflow,
+    )
+
+    with pytest.raises(DomainValidationError, match="多位候选人"):
         await service.analyze_candidate(job_id=job.id, raw_text_input="candidate text", files=[])
 
     assert score_items_workflow.calls == []

@@ -85,7 +85,6 @@ class CandidateDocumentSchema(BaseModel):
     document_type: str
     filename: str
     storage_path: str
-    text_extracted: str | None = None
 
 
 class CandidateAdditionalInformationSchema(BaseModel):
@@ -113,7 +112,6 @@ class PreparedCandidateDocumentInput:
     storage_path: str
     mime_type: str
     upload_order: int
-    extracted_text: str
     page_count: int | None
 
 

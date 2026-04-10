@@ -179,7 +179,6 @@ def build_supervisor_summary(
     return CandidateSupervisorSchema.model_validate(
         {
             "hard_requirement_overall": hard_requirement_overall,
-            "overall_score_5": 3.6,
             "overall_score_percent": 72.0,
             "ai_summary": "Strong candidate with clear execution examples.",
             "evidence_points": ["Led hiring", "Worked with stakeholders"],
@@ -211,7 +210,6 @@ def build_bundle(job: Job, temp_path: Path) -> CandidateAnalysisBundle:
                     storage_path=str(temp_path),
                     mime_type="application/pdf",
                     upload_order=1,
-                    extracted_text="resume text",
                     page_count=1,
                 )
             ],
@@ -266,6 +264,7 @@ async def test_candidate_import_service_persists_candidate_and_moves_files(db_se
     assert candidate is not None
     assert response.job_id == job.id
     assert sorted(tag.tag_name for tag in candidate.tags) == ["operator", "recruiting"]
+    assert candidate.documents[0].filename == "Ada-Lovelace-1.pdf"
 
 
 @pytest.mark.anyio

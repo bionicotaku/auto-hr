@@ -182,9 +182,8 @@ export type CandidateDetailRawDocumentDto = {
   id: string;
   document_type: "resume" | "other";
   filename: string;
-  storage_path: string;
+  file_url: string;
   mime_type: string;
-  extracted_text: string;
   page_count: number | null;
   upload_order: number;
 };
@@ -244,7 +243,6 @@ export type CandidateDetailTagDto = {
 
 export type CandidateDetailSupervisorDto = {
   hard_requirement_overall: "all_pass" | "has_borderline" | "has_fail";
-  overall_score_5: number | null;
   overall_score_percent: number | null;
   ai_summary: string;
   evidence_points: string[];
