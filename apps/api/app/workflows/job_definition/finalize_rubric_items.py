@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 from typing import Any
 
 from app.ai.client import OpenAIResponsesClient
@@ -26,6 +27,7 @@ class JobDefinitionFinalizeRubricItemsWorkflow:
         responsibilities: list[str],
         skills: list[str],
         rubric_items: list[dict[str, Any]],
+        progress_callback=None,
     ) -> list[JobFinalizeRubricItemEnrichmentSchema]:
         semaphore = asyncio.Semaphore(self.concurrency_limit)
         rubric_overview = [self._serialize_rubric_overview_item(item) for item in rubric_items]
@@ -37,6 +39,7 @@ class JobDefinitionFinalizeRubricItemsWorkflow:
                 skills=skills,
                 rubric_overview=rubric_overview,
                 rubric_item=self._serialize_rubric_item(item),
+                progress_callback=progress_callback,
             )
             for item in rubric_items
         ]
@@ -58,6 +61,7 @@ class JobDefinitionFinalizeRubricItemsWorkflow:
         skills: list[str],
         rubric_overview: list[dict[str, Any]],
         rubric_item: dict[str, Any],
+        progress_callback,
     ) -> JobFinalizeRubricItemEnrichmentSchema:
         async with semaphore:
             last_error: Exception | None = None
@@ -76,7 +80,12 @@ class JobDefinitionFinalizeRubricItemsWorkflow:
                         schema_name="job_finalize_rubric_item_enrichment_schema",
                         schema=JobFinalizeRubricItemEnrichmentSchema.model_json_schema(),
                     )
-                    return JobFinalizeRubricItemEnrichmentSchema.model_validate(payload)
+                    result = JobFinalizeRubricItemEnrichmentSchema.model_validate(payload)
+                    if progress_callback is not None:
+                        callback_result = progress_callback(result)
+                        if inspect.isawaitable(callback_result):
+                            await callback_result
+                    return result
                 except Exception as exc:
                     last_error = exc
 

@@ -1,6 +1,7 @@
 import re
 import threading
 import time
+import asyncio
 from collections import defaultdict
 
 import pytest
@@ -388,14 +389,16 @@ def test_summarize_workflow_uses_computed_scores_and_returns_schema() -> None:
     )
     workflow = CandidateSummarizeWorkflow(client)
 
-    result = workflow.run(
-        job_title="AI Recruiter",
-        job_summary="Own hiring for AI teams.",
-        standardized_candidate=build_standardized_candidate(),
-        rubric_score_items=build_score_items_result(),
-        hard_requirement_overall="has_borderline",
-        overall_score_5=3.4,
-        overall_score_percent=68.0,
+    result = asyncio.run(
+        workflow.run(
+            job_title="AI Recruiter",
+            job_summary="Own hiring for AI teams.",
+            standardized_candidate=build_standardized_candidate(),
+            rubric_score_items=build_score_items_result(),
+            hard_requirement_overall="has_borderline",
+            overall_score_5=3.4,
+            overall_score_percent=68.0,
+        )
     )
 
     assert result.recommendation == "manual_review"
@@ -415,12 +418,14 @@ def test_summarize_workflow_rejects_advance_when_hard_requirement_is_not_all_pas
     workflow = CandidateSummarizeWorkflow(client)
 
     with pytest.raises(DomainValidationError, match="cannot advance"):
-        workflow.run(
-            job_title="AI Recruiter",
-            job_summary="Own hiring for AI teams.",
-            standardized_candidate=build_standardized_candidate(),
-            rubric_score_items=build_score_items_result(),
-            hard_requirement_overall="has_fail",
-            overall_score_5=2.2,
-            overall_score_percent=44.0,
+        asyncio.run(
+            workflow.run(
+                job_title="AI Recruiter",
+                job_summary="Own hiring for AI teams.",
+                standardized_candidate=build_standardized_candidate(),
+                rubric_score_items=build_score_items_result(),
+                hard_requirement_overall="has_fail",
+                overall_score_5=2.2,
+                overall_score_percent=44.0,
+            )
         )

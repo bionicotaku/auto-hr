@@ -196,7 +196,7 @@ describe("Job edit workspace", () => {
           run_id: "run-job-123",
           run_type: "job_finalize",
           status: "queued",
-          total_ai_steps: 1,
+          total_ai_steps: 2,
         }),
       );
 
@@ -223,15 +223,23 @@ describe("Job edit workspace", () => {
         status: "running",
         current_stage: "preparing",
         current_ai_step: 0,
-        total_ai_steps: 1,
+        total_ai_steps: 2,
       });
       eventSourceInstances[0].emit("progress", {
         run_id: "run-job-123",
         run_type: "job_finalize",
         current_stage: "finalizing_definition",
         current_ai_step: 1,
-        total_ai_steps: 1,
-        message: "AI 已完成岗位定稿分析",
+        total_ai_steps: 2,
+        message: "AI 已完成岗位标题与摘要生成",
+      });
+      eventSourceInstances[0].emit("progress", {
+        run_id: "run-job-123",
+        run_type: "job_finalize",
+        current_stage: "finalizing_definition",
+        current_ai_step: 2,
+        total_ai_steps: 2,
+        message: "AI 已完成评估项定稿：1",
       });
       eventSourceInstances[0].emit("completed", {
         run_id: "run-job-123",
@@ -244,6 +252,7 @@ describe("Job edit workspace", () => {
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith("/jobs/job-123");
     });
+    expect(screen.getByText("已完成 2 / 2 个 AI 分析步骤")).toBeInTheDocument();
   });
 
   it("returns to the job detail page after saving an active job with changes", async () => {
@@ -255,7 +264,7 @@ describe("Job edit workspace", () => {
           run_id: "run-job-123",
           run_type: "job_finalize",
           status: "queued",
-          total_ai_steps: 1,
+          total_ai_steps: 2,
         }),
       );
 
@@ -299,7 +308,7 @@ describe("Job edit workspace", () => {
           run_id: "run-job-123",
           run_type: "job_finalize",
           status: "queued",
-          total_ai_steps: 1,
+          total_ai_steps: 2,
         }),
       );
 

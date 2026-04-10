@@ -1,3 +1,5 @@
+import asyncio
+
 from app.ai.client import OpenAIResponsesClient
 from app.ai.prompts.candidate_supervisor import build_candidate_supervisor_prompt
 from app.core.exceptions import DomainValidationError
@@ -10,7 +12,7 @@ class CandidateSummarizeWorkflow:
     def __init__(self, client: OpenAIResponsesClient) -> None:
         self.client = client
 
-    def run(
+    async def run(
         self,
         *,
         job_title: str,
@@ -30,7 +32,8 @@ class CandidateSummarizeWorkflow:
             overall_score_5=overall_score_5,
             overall_score_percent=overall_score_percent,
         )
-        payload = self.client.generate_structured_output(
+        payload = await asyncio.to_thread(
+            self.client.generate_structured_output,
             prompt=prompt,
             schema_name="candidate_supervisor_schema",
             schema=CandidateSupervisorSchema.model_json_schema(),

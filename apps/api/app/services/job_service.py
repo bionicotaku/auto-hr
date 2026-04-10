@@ -205,7 +205,13 @@ class JobService:
         logger.info("Job stage finished: stage=job_agent_edit result=success job_id=%s", job_id)
         return self._to_generated_content_response(response)
 
-    async def finalize_draft(self, job_id: str, payload: JobFinalizeRequest) -> JobFinalizeResponse:
+    async def finalize_draft(
+        self,
+        job_id: str,
+        payload: JobFinalizeRequest,
+        *,
+        progress_callback=None,
+    ) -> JobFinalizeResponse:
         job = self._get_editable_job(job_id)
         if self.finalize_workflow is None:
             raise DomainValidationError("Job finalize workflow is not configured.")
@@ -221,6 +227,7 @@ class JobService:
                 responsibilities=payload.responsibilities,
                 skills=payload.skills,
                 rubric_items=self._coerce_edit_rubric_items(payload.rubric_items),
+                progress_callback=progress_callback,
             )
             merged_items = self._merge_finalize_enrichment(payload.rubric_items, response)
             normalized_items = self._normalize_finalize_rubric_items(merged_items)

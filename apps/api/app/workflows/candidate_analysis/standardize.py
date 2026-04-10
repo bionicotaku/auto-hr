@@ -1,3 +1,4 @@
+import asyncio
 import base64
 from pathlib import Path
 
@@ -15,7 +16,7 @@ class CandidateStandardizeWorkflow:
     def __init__(self, client: OpenAIResponsesClient) -> None:
         self.client = client
 
-    def run(self, prepared_input: PreparedCandidateImportInput) -> CandidateStandardizationSchema:
+    async def run(self, prepared_input: PreparedCandidateImportInput) -> CandidateStandardizationSchema:
         prompt = build_candidate_standardization_prompt(
             job_title=prepared_input.job_title,
             job_summary=prepared_input.job_summary,
@@ -39,7 +40,8 @@ class CandidateStandardizeWorkflow:
         if file_inputs:
             inputs[0]["content"].extend(file_inputs)
 
-        payload = self.client.generate_structured_output_from_inputs(
+        payload = await asyncio.to_thread(
+            self.client.generate_structured_output_from_inputs,
             inputs=inputs,
             schema_name="candidate_standardization_schema",
             schema=CandidateStandardizationSchema.model_json_schema(),

@@ -100,11 +100,11 @@
     
 - B 页面 Agent 模式
     
-- B 页面点击“保存”后的最终定稿调用
+- B 页面点击“保存”后的 `job_finalize` analysis run
     
 - Candidate 标准化调用
     
-- rubric 逐项子 agent 调用
+- rubric 逐项分析调用
     
 - supervisor 汇总调用
     
@@ -522,9 +522,11 @@ Agent 模式返回结果必须合法，否则不允许覆盖。
 
 点击“保存”后：
 
-- 页面进入 loading
+- 页面创建一个 `job_finalize` analysis run
     
-- 在最终定稿编排成功前，不正式入库或更新
+- 前端通过 `SSE` 显示 `connected / progress / completed / failed`
+    
+- 在 analysis run 成功前，不正式入库或更新
     
 - 只有成功并通过 schema 校验后，才写入数据库
     
@@ -534,7 +536,7 @@ Agent 模式返回结果必须合法，否则不允许覆盖。
 
 ## 6.9 最终入库内容
 
-当最终定稿调用成功后，Job 当前生效数据包含：
+当 `job_finalize` analysis run 成功后，Job 当前生效数据包含：
 
 ### Job 基本信息
 
@@ -923,7 +925,7 @@ Candidate 分析流最终输出：
 
 ## 9.1 第一步：原始资料临时接收
 
-用户点击“生成”后，系统先接收并暂存：
+用户点击“分析”后，系统先创建 `candidate_import` analysis run，再接收并暂存：
 
 - 原始文本输入
     
@@ -935,19 +937,20 @@ Candidate 分析流最终输出：
     
 
 这些原始资料在 Demo 阶段只作为本次分析输入。  
+analysis run 会立即返回 `run_id`，前端通过 `SSE` 观察进度。  
 如果后续任一步失败，则不入库，并清理临时文件。
 
 ---
 
 ## 9.2 第二步：Candidate 标准化
 
-系统使用文件 input 的 GPT API 进行标准化抽取。
+系统使用带 PDF 文件 input 的 GPT Responses API 进行标准化抽取。
 
 输入：
 
 - 原始文本
     
-- PDF 抽取文本
+- 原始 PDF 文件 input
     
 - 文件元信息
     
@@ -970,9 +973,9 @@ Candidate 分析流最终输出：
 
 ---
 
-## 9.3 第三步：按 rubric 拆分任务
+## 9.3 第三步：按 rubric 拆分并发评分任务
 
-系统读取当前 Job 的 rubric 和评估规范，为每个 rubric 项创建独立分析任务。
+系统读取当前 Job 的 rubric 和评估规范，为每个 rubric 项创建独立评分任务。
 
 区分两类：
 
@@ -1004,11 +1007,11 @@ Candidate 分析流最终输出：
 
 ---
 
-## 9.4 第四步：子 agent 逐项分析
+## 9.4 第四步：逐项并发分析
 
-每个 rubric 项由一个独立子 agent 处理。
+每个 rubric 项由一次独立的 LLM 调用处理。
 
-子 agent 输入包括：
+每个评分调用的输入包括：
 
 - 该 rubric 项定义
     
@@ -1023,7 +1026,7 @@ Candidate 分析流最终输出：
 - Job 描述摘要
     
 
-子 agent 输出包括：
+每个评分调用的输出包括：
 
 - 子分或门槛判断
     
@@ -1038,7 +1041,7 @@ Candidate 分析流最终输出：
 
 ## 9.5 第五步：supervisor 汇总
 
-所有子 agent 完成后，由 supervisor 汇总：
+所有 rubric 逐项分析完成后，由 supervisor 汇总：
 
 - 硬门槛结果
     
@@ -1192,8 +1195,8 @@ B 页面上方固定为：
 - 右侧 rubric + 权重编辑框
     
 
-点击“保存”后必须显示 loading。  
-只有最终定稿成功后，才允许真正保存并跳转。
+点击“保存”后必须展示 analysis run 进度。  
+只有收到 `completed` 事件后，才允许真正跳转。
 
 ## 13.2 Candidate 列表页
 
@@ -1227,7 +1230,7 @@ B 页面上方固定为：
 
 本期 Demo 的 AI 主链路最终固定为：
 
-**工作描述与 rubric 生成/编辑 → B 页面点击保存时最终定稿并生成正式评估规范 → Candidate 原始资料临时接收 → Candidate 轻量标准化 → 基于 rubric 的子 agent 逐项分析 → supervisor 汇总总分、summary 与证据点**
+**工作描述与 rubric 生成/编辑 → B 页面点击保存时启动 `job_finalize` analysis run 并生成正式评估规范 → Candidate 原始资料临时接收 → Candidate 轻量标准化 → 基于 rubric 的逐项并发分析 → supervisor 汇总总分、summary 与证据点**
 
 同时，本期设计做了两项关键收敛：
 

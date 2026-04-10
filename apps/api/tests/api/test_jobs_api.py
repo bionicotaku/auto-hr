@@ -117,7 +117,7 @@ class StubJobFinalizeRunService:
             run_id="run-job-001",
             run_type="job_finalize",
             status="queued",
-            total_ai_steps=1,
+            total_ai_steps=2,
         )
 
     async def execute_run(self, *_args, **_kwargs):
@@ -358,7 +358,7 @@ def test_finalize_endpoint_returns_active_job_id(client, monkeypatch) -> None:
         "run_id": "run-job-001",
         "run_type": "job_finalize",
         "status": "queued",
-        "total_ai_steps": 1,
+        "total_ai_steps": 2,
     }
 
 

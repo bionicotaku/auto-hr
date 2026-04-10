@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 
 from app.ai.client import OpenAIResponsesClient
 from app.core.exceptions import DomainValidationError
@@ -41,23 +42,34 @@ class JobDefinitionFinalizeWorkflow:
         responsibilities: list[str],
         skills: list[str],
         rubric_items: list[dict],
+        progress_callback=None,
     ) -> JobFinalizeScoringResponseSchema:
-        title_summary_task = asyncio.to_thread(
-            self.title_summary_workflow.run,
-            description_text=description_text,
-            responsibilities=responsibilities,
-            skills=skills,
-            rubric_items=rubric_items,
-        )
+        async def run_title_summary():
+            result = await asyncio.to_thread(
+                self.title_summary_workflow.run,
+                description_text=description_text,
+                responsibilities=responsibilities,
+                skills=skills,
+                rubric_items=rubric_items,
+            )
+            if progress_callback is not None:
+                callback_result = progress_callback("title_summary", result)
+                if inspect.isawaitable(callback_result):
+                    await callback_result
+            return result
+
         rubric_items_task = self.rubric_items_workflow.run(
             description_text=description_text,
             responsibilities=responsibilities,
             skills=skills,
             rubric_items=rubric_items,
+            progress_callback=lambda result: progress_callback("rubric_item", result)
+            if progress_callback is not None
+            else None,
         )
 
         title_summary, rubric_item_enrichment = await asyncio.gather(
-            title_summary_task,
+            run_title_summary(),
             rubric_items_task,
         )
 

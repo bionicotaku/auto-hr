@@ -34,13 +34,13 @@ class StubStandardizeWorkflow:
         self.result = result
         self.calls: list[PreparedCandidateImportInput] = []
 
-    def run(self, prepared_input: PreparedCandidateImportInput) -> CandidateStandardizationSchema:
+    async def run(self, prepared_input: PreparedCandidateImportInput) -> CandidateStandardizationSchema:
         self.calls.append(prepared_input)
         return self.result
 
 
 class FailingStandardizeWorkflow:
-    def run(self, _prepared_input: PreparedCandidateImportInput):
+    async def run(self, _prepared_input: PreparedCandidateImportInput):
         raise DomainValidationError("standardize failed")
 
 
@@ -71,7 +71,7 @@ class StubSummarizeWorkflow:
         self.error = error
         self.calls: list[dict] = []
 
-    def run(self, **kwargs) -> CandidateSupervisorSchema:
+    async def run(self, **kwargs) -> CandidateSupervisorSchema:
         self.calls.append(kwargs)
         if self.error:
             raise self.error

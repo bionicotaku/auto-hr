@@ -131,15 +131,6 @@ export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProp
       ) : contextQuery.data ? (
         <div className="space-y-6">
           <CandidateImportContextCard context={contextQuery.data} />
-          {analysisRun.state !== "idle" ? (
-            <AnalysisProgressCard
-              title="候选人分析进度"
-              currentStage={analysisRun.currentStage}
-              currentAiStep={analysisRun.currentAiStep}
-              totalAiSteps={analysisRun.totalAiSteps}
-              errorMessage={analysisRun.errorMessage}
-            />
-          ) : null}
           <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
             <CandidateImportForm
               textValue={rawTextInput}
@@ -161,6 +152,15 @@ export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProp
               onRemoveFile={handleRemoveFile}
             />
           </div>
+          {analysisRun.state !== "idle" ? (
+            <AnalysisProgressCard
+              title="候选人分析进度"
+              currentStage={analysisRun.currentStage}
+              currentAiStep={analysisRun.currentAiStep}
+              totalAiSteps={analysisRun.totalAiSteps}
+              errorMessage={analysisRun.errorMessage}
+            />
+          ) : null}
         </div>
       ) : null}
     </AppShell>

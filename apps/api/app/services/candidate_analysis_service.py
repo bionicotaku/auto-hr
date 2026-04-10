@@ -83,7 +83,7 @@ class CandidateAnalysisService:
         )
         try:
             logger.info("Candidate stage started: stage=candidate_standardize result=start job_id=%s", job_id)
-            standardized_candidate = self.standardize_workflow.run(prepared_input)
+            standardized_candidate = await self.standardize_workflow.run(prepared_input)
             logger.info("Candidate stage finished: stage=candidate_standardize result=success job_id=%s", job_id)
             rubric_items = [self._serialize_rubric_item(item) for item in job.rubric_items]
             logger.info("Candidate stage started: stage=candidate_score_items result=start job_id=%s", job_id)
@@ -99,7 +99,7 @@ class CandidateAnalysisService:
             overall_score_5 = self._compute_overall_score_5(rubric_score_items, rubric_items)
             overall_score_percent = round(overall_score_5 / 5 * 100, 2)
             logger.info("Candidate stage started: stage=candidate_summarize result=start job_id=%s", job_id)
-            supervisor_summary = self.summarize_workflow.run(
+            supervisor_summary = await self.summarize_workflow.run(
                 job_title=job.title,
                 job_summary=job.summary,
                 standardized_candidate=standardized_candidate,

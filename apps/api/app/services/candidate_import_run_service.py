@@ -153,7 +153,7 @@ class CandidateImportRunService:
                 ]
 
             reporter.set_stage("standardizing", "正在标准化候选人信息")
-            standardized_candidate = self.standardize_workflow.run(prepared_input)
+            standardized_candidate = await self.standardize_workflow.run(prepared_input)
             reporter.record_ai_step("standardizing", "AI 已完成候选人标准化")
 
             reporter.set_stage("scoring", "正在逐项分析评估规范")
@@ -174,7 +174,7 @@ class CandidateImportRunService:
             overall_score_percent = round(overall_score_5 / 5 * 100, 2)
 
             reporter.set_stage("summarizing", "正在生成候选人汇总结论")
-            supervisor_summary = self.summarize_workflow.run(
+            supervisor_summary = await self.summarize_workflow.run(
                 job_title=job.title,
                 job_summary=job.summary,
                 standardized_candidate=standardized_candidate,

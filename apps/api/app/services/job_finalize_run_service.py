@@ -41,7 +41,7 @@ class JobFinalizeRunService:
                     run_type="job_finalize",
                     resource_id=job_id,
                     current_stage="preparing",
-                    total_ai_steps=1,
+                    total_ai_steps=len(payload.rubric_items) + 1,
                     payload_json=payload.model_dump(mode="json"),
                 ),
             )
@@ -73,9 +73,16 @@ class JobFinalizeRunService:
                     job_repository=self.job_repository,
                     finalize_workflow=self.finalize_workflow,
                 )
-                response = await job_service.finalize_draft(job_id, payload)
+                response = await job_service.finalize_draft(
+                    job_id,
+                    payload,
+                    progress_callback=lambda step_type, value: self._record_finalize_progress(
+                        reporter,
+                        step_type=step_type,
+                        value=value,
+                    ),
+                )
 
-            reporter.record_ai_step("finalizing_definition", "AI 已完成岗位定稿分析")
             reporter.set_stage("persisting", "正在写入岗位档案")
             reporter.mark_completed(result_resource_type="job", result_resource_id=response.job_id)
         except (NotFoundError, ConflictError, DomainValidationError) as exc:
@@ -92,3 +99,14 @@ class JobFinalizeRunService:
                 exc,
             )
             reporter.mark_failed("岗位分析失败，请稍后重试。")
+
+    async def _record_finalize_progress(self, reporter: AnalysisRunProgressReporter, *, step_type: str, value) -> None:
+        if step_type == "title_summary":
+            reporter.record_ai_step("finalizing_definition", "AI 已完成岗位标题与摘要生成")
+            return
+
+        sort_order = getattr(value, "sort_order", "")
+        reporter.record_ai_step(
+            "finalizing_definition",
+            f"AI 已完成评估项定稿：{sort_order}",
+        )

@@ -1,3 +1,4 @@
+import asyncio
 import base64
 from io import BytesIO
 
@@ -195,7 +196,7 @@ def test_standardize_workflow_supports_text_only_input() -> None:
         documents=[],
     )
 
-    response = workflow.run(prepared_input)
+    response = asyncio.run(workflow.run(prepared_input))
 
     assert isinstance(response, CandidateStandardizationSchema)
     content = client.calls[0]["inputs"][0]["content"]
@@ -227,7 +228,7 @@ def test_standardize_workflow_adds_input_files_when_documents_exist(tmp_path) ->
         ],
     )
 
-    workflow.run(prepared_input)
+    asyncio.run(workflow.run(prepared_input))
 
     content = client.calls[0]["inputs"][0]["content"]
     file_item = next(item for item in content if item["type"] == "input_file")
@@ -248,7 +249,7 @@ def test_standardize_workflow_rejects_invalid_payload() -> None:
     )
 
     with pytest.raises(ValueError):
-        workflow.run(prepared_input)
+        asyncio.run(workflow.run(prepared_input))
 
 
 @pytest.mark.anyio
