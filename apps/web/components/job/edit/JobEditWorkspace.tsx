@@ -7,7 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { getJobApiErrorMessage } from "@/lib/api/jobs";
-import type { JobEditorMessageDto, JobRubricItemDto } from "@/lib/api/types";
+import type { JobEditorMessageDto, JobRubricDraftItemDto } from "@/lib/api/types";
 import {
   useJobAgentEditMutation,
   useDeleteJobDraftMutation,
@@ -51,7 +51,7 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
   const deleteDraftMutation = useDeleteJobDraftMutation(jobId);
 
   const [descriptionText, setDescriptionText] = useState("");
-  const [rubricItems, setRubricItems] = useState<JobRubricItemDto[]>([]);
+  const [rubricItems, setRubricItems] = useState<JobRubricDraftItemDto[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<JobEditorMessageDto[]>([]);
   const [panelError, setPanelError] = useState<string | null>(null);
@@ -108,10 +108,10 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
     return messages.slice(-5);
   }
 
-  function updateRubricItem<K extends keyof JobRubricItemDto>(
+  function updateRubricItem<K extends keyof JobRubricDraftItemDto>(
     index: number,
     field: K,
-    value: JobRubricItemDto[K],
+    value: JobRubricDraftItemDto[K],
   ) {
     setRubricItems((current) =>
       current.map((item, itemIndex) => {
@@ -264,10 +264,6 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
                 description: item.detail,
                 criterion_type: "weighted",
                 weight_input: 10,
-                weight_normalized: 0.1,
-                scoring_standard_json: {},
-                agent_prompt_text: "",
-                evidence_guidance_text: "",
               }))}
               onItemChange={updateRubricItem}
               disabled={isBusy}

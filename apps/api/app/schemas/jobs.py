@@ -66,7 +66,7 @@ class JobRubricItemResponse(BaseModel):
     criterion_type: Literal["weighted", "hard_requirement"]
     weight_input: float
     weight_normalized: float | None
-    scoring_standard_json: dict[str, Any]
+    scoring_standard_items: list[dict[str, str]]
     agent_prompt_text: str
     evidence_guidance_text: str
 
@@ -88,36 +88,28 @@ class JobEditorMessage(BaseModel):
         return normalized
 
 
-class JobRubricItemRequest(BaseModel):
+class JobRubricDraftItemRequest(BaseModel):
     id: str | None = None
     sort_order: int = Field(ge=1)
     name: str = Field(min_length=1, max_length=120)
     description: str = Field(min_length=1, max_length=2000)
     criterion_type: Literal["weighted", "hard_requirement"]
     weight_input: float = Field(ge=0)
-    weight_normalized: float | None = Field(default=None, ge=0, le=1)
-    scoring_standard_json: dict[str, Any]
-    agent_prompt_text: str = Field(default="", max_length=4000)
-    evidence_guidance_text: str = Field(default="", max_length=2000)
 
     model_config = ConfigDict(extra="forbid", from_attributes=True)
 
 
-class JobGeneratedRubricItemResponse(BaseModel):
+class JobRubricDraftItemResponse(BaseModel):
     sort_order: int
     name: str
     description: str
     criterion_type: Literal["weighted", "hard_requirement"]
     weight_input: float
-    weight_normalized: float | None
-    scoring_standard_json: dict[str, Any]
-    agent_prompt_text: str = ""
-    evidence_guidance_text: str = ""
 
 
 class JobChatRequest(BaseModel):
     description_text: str = Field(min_length=1, max_length=12000)
-    rubric_items: list[JobRubricItemRequest] = Field(min_length=1, max_length=12)
+    rubric_items: list[JobRubricDraftItemRequest] = Field(min_length=1, max_length=12)
     recent_messages: list[JobEditorMessage] = Field(default_factory=list, max_length=5)
     user_input: str = Field(min_length=1, max_length=4000)
 
@@ -157,12 +149,12 @@ class JobChatResponse(BaseModel):
 
 class JobGeneratedContentResponse(BaseModel):
     description_text: str
-    rubric_items: list[JobGeneratedRubricItemResponse]
+    rubric_items: list[JobRubricDraftItemResponse]
 
 
 class JobFinalizeRequest(BaseModel):
     description_text: str = Field(min_length=1, max_length=12000)
-    rubric_items: list[JobRubricItemRequest] = Field(min_length=1, max_length=12)
+    rubric_items: list[JobRubricDraftItemRequest] = Field(min_length=1, max_length=12)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -257,7 +249,7 @@ class JobEditResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     finalized_at: datetime | None
-    rubric_items: list[JobRubricItemResponse]
+    rubric_items: list[JobRubricDraftItemResponse]
 
 
 class CreateJobDraftResponse(BaseModel):

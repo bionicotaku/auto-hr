@@ -9,7 +9,6 @@ from app.ai.client import OpenAIResponsesClient
 from app.schemas.ai.job_definition import (
     JobDraftSchema,
     JobFinalizeScoringResponseSchema,
-    build_job_definition_openai_schema,
 )
 
 
@@ -74,19 +73,17 @@ def test_openai_json_schema_normalization_requires_nullable_fields_and_removes_d
     client, _ = build_client(json.dumps({"value": "ok"}))
 
     draft_schema = client._to_openai_json_schema(JobDraftSchema.model_json_schema())
-    schema = client._to_openai_json_schema(
-        build_job_definition_openai_schema(JobFinalizeScoringResponseSchema.model_json_schema())
-    )
-    finalize_rubric_schema = schema["$defs"]["JobFinalizeScoringItemSchema"]
+    schema = client._to_openai_json_schema(JobFinalizeScoringResponseSchema.model_json_schema())
+    finalize_rubric_schema = schema["$defs"]["JobFinalizeEnrichmentItemSchema"]
     draft_rubric_schema = draft_schema["$defs"]["JobRubricItemDraftSchema"]
     structured_info_schema = draft_schema["$defs"]["JobStructuredInfoSchema"]
 
     assert "weight_normalized" not in draft_rubric_schema["properties"]
     assert "department" in structured_info_schema["required"]
     assert "default" not in structured_info_schema["properties"]["department"]
-    assert "scoring_standard_json" not in draft_rubric_schema["properties"]
-    assert finalize_rubric_schema["properties"]["scoring_standard_json"]["type"] == "array"
-    assert finalize_rubric_schema["properties"]["scoring_standard_json"]["items"]["required"] == [
+    assert "scoring_standard_items" not in draft_rubric_schema["properties"]
+    assert finalize_rubric_schema["properties"]["scoring_standard_items"]["type"] == "array"
+    assert schema["$defs"]["ScoringStandardItemSchema"]["required"] == [
         "key",
         "value",
     ]

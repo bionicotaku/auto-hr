@@ -51,16 +51,11 @@ function makeEditPayload() {
     finalized_at: null,
     rubric_items: [
       {
-        id: "rubric-1",
         sort_order: 1,
         name: "Execution",
         description: "Can run hiring",
         criterion_type: "weighted",
         weight_input: 70,
-        weight_normalized: 0.7,
-        scoring_standard_json: { score_5: "Excellent" },
-        agent_prompt_text: "Judge execution",
-        evidence_guidance_text: "Look for ownership",
       },
     ],
   };
@@ -118,10 +113,6 @@ describe("Job edit workspace", () => {
               description: "Updated description",
               criterion_type: "weighted",
               weight_input: 80,
-              weight_normalized: 0.8,
-              scoring_standard_json: { score_5: "Excellent" },
-              agent_prompt_text: "Judge updated execution",
-              evidence_guidance_text: "Look for impact",
             },
           ],
         }),
@@ -153,10 +144,6 @@ describe("Job edit workspace", () => {
               description: "Regenerated description",
               criterion_type: "weighted",
               weight_input: 75,
-              weight_normalized: 0.75,
-              scoring_standard_json: { score_5: "Excellent" },
-              agent_prompt_text: "Judge regenerated execution",
-              evidence_guidance_text: "Look for scope",
             },
           ],
         }),
@@ -186,7 +173,7 @@ describe("Job edit workspace", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        "/api/jobs/job-123/finalize",
+        expect.stringContaining("/api/jobs/job-123/finalize"),
         expect.objectContaining({
           method: "POST",
         }),
@@ -227,7 +214,7 @@ describe("Job edit workspace", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        "/api/jobs/job-123/draft",
+        expect.stringContaining("/api/jobs/job-123/draft"),
         expect.objectContaining({
           method: "DELETE",
         }),

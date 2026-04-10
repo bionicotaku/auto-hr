@@ -122,16 +122,18 @@ def make_finalize_result(
 ) -> JobFinalizeScoringResponseSchema:
     return JobFinalizeScoringResponseSchema.model_validate(
         {
+            "title": "Final Recruiting Lead",
+            "summary": "Lead the recruiting motion with clear quality standards.",
             "rubric_items": [
                 {
                     "sort_order": 1,
-                    "scoring_standard_json": {"score_5": "Excellent"},
+                    "scoring_standard_items": [{"key": "score_5", "value": "Excellent"}],
                     "agent_prompt_text": "Judge execution",
                     "evidence_guidance_text": "Look for hiring throughput",
                 },
                 {
                     "sort_order": 2,
-                    "scoring_standard_json": {"pass_definition": "Can collaborate globally"},
+                    "scoring_standard_items": [{"key": "pass_definition", "value": "Can collaborate globally"}],
                     "agent_prompt_text": "Judge English collaboration",
                     "evidence_guidance_text": "Look for cross-border work",
                 },
@@ -151,11 +153,7 @@ def test_create_draft_from_description_persists_job(db_session) -> None:
     assert response.lifecycle_status == "draft"
     assert loaded.creation_mode == "from_description"
     assert len(loaded.rubric_items) == 2
-    assert loaded.rubric_items[0].weight_normalized == 1.0
-    assert loaded.rubric_items[1].weight_normalized is None
-    assert loaded.rubric_items[0].scoring_standard_json == {}
-    assert loaded.rubric_items[0].agent_prompt_text == ""
-    assert loaded.rubric_items[0].evidence_guidance_text == ""
+    assert "weight_normalized" not in loaded.rubric_items[0].model_dump()
 
 
 def test_create_draft_from_form_persists_job(db_session) -> None:
@@ -242,8 +240,7 @@ def test_agent_edit_on_draft_returns_generated_content_without_writing(db_sessio
 
     loaded = service.get_job_edit_payload(created.job_id)
     assert response.description_text == "New JD body"
-    assert response.rubric_items[0].weight_normalized == 1.0
-    assert response.rubric_items[1].weight_normalized is None
+    assert "weight_normalized" not in response.rubric_items[0].model_dump()
     assert loaded.description_text == "JD body"
     assert agent_workflow.calls[0]["user_input"] == "直接应用新的版本"
 
@@ -297,15 +294,16 @@ def test_finalize_draft_updates_job_to_active_and_replaces_rubric(db_session) ->
     loaded_after = service.get_job_edit_payload(created.job_id)
     assert response.lifecycle_status == "active"
     assert loaded_after.lifecycle_status == "active"
-    assert loaded_after.title == "Recruiting Lead"
-    assert loaded_after.summary == "Build the recruiting motion."
+    assert loaded_after.title == "Final Recruiting Lead"
+    assert loaded_after.summary == "Lead the recruiting motion with clear quality standards."
     assert loaded_after.description_text == "Locally finalized description"
     assert loaded_after.finalized_at is not None
     assert len(loaded_after.rubric_items) == 2
-    assert sum(item.weight_input for item in loaded_after.rubric_items if item.criterion_type == "weighted") == 100
-    assert loaded_after.rubric_items[0].scoring_standard_json == {"score_5": "Excellent"}
-    assert loaded_after.rubric_items[0].agent_prompt_text == "Judge execution"
-    assert loaded_after.rubric_items[0].evidence_guidance_text == "Look for hiring throughput"
+    final_job = service.job_repository.get_job_for_edit(db_session, created.job_id)
+    assert sum(item.weight_input for item in final_job.rubric_items if item.criterion_type == "weighted") == 100
+    assert final_job.rubric_items[0].scoring_standard_items == [{"key": "score_5", "value": "Excellent"}]
+    assert final_job.rubric_items[0].agent_prompt_text == "Judge execution"
+    assert final_job.rubric_items[0].evidence_guidance_text == "Look for hiring throughput"
 
 
 def test_finalize_failure_does_not_override_draft(db_session) -> None:
@@ -379,7 +377,7 @@ def test_finalize_rejects_zero_weighted_total(db_session) -> None:
     )
     draft_payload = service.get_job_edit_payload(created.job_id)
     zero_weight_items = [
-        item.model_copy(update={"weight_input": 0, "weight_normalized": 0})
+        item.model_copy(update={"weight_input": 0})
         if item.criterion_type == "weighted"
         else item
         for item in draft_payload.rubric_items

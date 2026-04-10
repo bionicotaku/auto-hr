@@ -38,7 +38,7 @@ def create_active_job(db_session) -> Job:
         criterion_type="weighted",
         weight_input=100,
         weight_normalized=1.0,
-        scoring_standard_json={"score_5": "Excellent"},
+        scoring_standard_items=[{"key": "score_5", "value": "Excellent"}],
         agent_prompt_text="Judge execution",
         evidence_guidance_text="Look for examples",
     )

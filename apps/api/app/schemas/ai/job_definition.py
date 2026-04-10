@@ -1,4 +1,3 @@
-from copy import deepcopy
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -34,16 +33,21 @@ class JobRubricItemDraftSchema(JobRubricItemBaseSchema):
     pass
 
 
-class JobRubricItemSchema(JobRubricItemBaseSchema):
+class ScoringStandardItemSchema(BaseModel):
+    key: str = Field(min_length=1, max_length=80)
+    value: str = Field(min_length=1, max_length=4000)
+
+
+class JobRubricItemFinalSchema(JobRubricItemBaseSchema):
     weight_normalized: float | None = Field(default=None, ge=0, le=1)
-    scoring_standard_json: dict[str, str]
+    scoring_standard_items: list[ScoringStandardItemSchema] = Field(min_length=1, max_length=10)
     agent_prompt_text: str = Field(min_length=1, max_length=4000)
     evidence_guidance_text: str = Field(min_length=1, max_length=2000)
 
 
-class JobFinalizeScoringItemSchema(BaseModel):
+class JobFinalizeEnrichmentItemSchema(BaseModel):
     sort_order: int = Field(ge=1)
-    scoring_standard_json: dict[str, str]
+    scoring_standard_items: list[ScoringStandardItemSchema] = Field(min_length=1, max_length=10)
     agent_prompt_text: str = Field(min_length=1, max_length=4000)
     evidence_guidance_text: str = Field(min_length=1, max_length=2000)
 
@@ -66,94 +70,19 @@ class JobAgentEditResponseSchema(BaseModel):
 
 
 class JobFinalizeScoringResponseSchema(BaseModel):
-    rubric_items: list[JobFinalizeScoringItemSchema] = Field(min_length=1, max_length=12)
-
-
-def build_job_definition_openai_schema(schema: dict[str, Any]) -> dict[str, Any]:
-    transformed = deepcopy(schema)
-
-    def visit(node: Any) -> None:
-        if isinstance(node, dict):
-            properties = node.get("properties")
-            if isinstance(properties, dict) and "scoring_standard_json" in properties:
-                properties["scoring_standard_json"] = {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "key": {"type": "string", "minLength": 1},
-                            "value": {"type": "string", "minLength": 1},
-                        },
-                        "required": ["key", "value"],
-                        "additionalProperties": False,
-                    },
-                }
-            for value in node.values():
-                visit(value)
-        elif isinstance(node, list):
-            for item in node:
-                visit(item)
-
-    visit(transformed)
-    return transformed
-
-
-def normalize_job_definition_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    def convert_scoring_standard(value: Any) -> Any:
-        if isinstance(value, dict):
-            return value
-        if not isinstance(value, list):
-            raise ValueError("scoring_standard_json must be an object or a list of key/value items.")
-
-        converted: dict[str, str] = {}
-        for item in value:
-            if not isinstance(item, dict):
-                raise ValueError("scoring_standard_json items must be objects.")
-            key = item.get("key")
-            item_value = item.get("value")
-            if not isinstance(key, str) or not key.strip():
-                raise ValueError("scoring_standard_json items require a non-empty key.")
-            if not isinstance(item_value, str) or not item_value.strip():
-                raise ValueError("scoring_standard_json items require a non-empty value.")
-            if key in converted:
-                raise ValueError("scoring_standard_json items must not contain duplicate keys.")
-            converted[key] = item_value
-        return converted
-
-    def visit(node: Any) -> Any:
-        if isinstance(node, dict):
-            converted: dict[str, Any] = {}
-            for key, value in node.items():
-                if key == "scoring_standard_json":
-                    converted[key] = convert_scoring_standard(value)
-                else:
-                    converted[key] = visit(value)
-            return converted
-        if isinstance(node, list):
-            return [visit(item) for item in node]
-        return node
-
-    return visit(payload)
+    title: str = Field(min_length=1, max_length=200)
+    summary: str = Field(min_length=1, max_length=2000)
+    rubric_items: list[JobFinalizeEnrichmentItemSchema] = Field(min_length=1, max_length=12)
 
 
 def rubric_items_to_json(
-    items: list[JobRubricItemDraftSchema | JobRubricItemSchema | dict[str, Any]],
+    items: list[JobRubricItemDraftSchema | JobRubricItemFinalSchema | dict[str, Any]],
 ) -> list[dict[str, Any]]:
     serialized: list[dict[str, Any]] = []
     for item in items:
-        if isinstance(item, (JobRubricItemDraftSchema, JobRubricItemSchema)):
+        if isinstance(item, (JobRubricItemDraftSchema, JobRubricItemFinalSchema)):
             payload = item.model_dump(mode="json")
-            payload.setdefault("weight_normalized", None)
-            payload.setdefault("scoring_standard_json", {})
-            payload.setdefault("agent_prompt_text", "")
-            payload.setdefault("evidence_guidance_text", "")
             serialized.append(payload)
         else:
-            payload = dict(item)
-            payload.setdefault("weight_normalized", None)
-            payload.setdefault("scoring_standard_json", {})
-            payload.setdefault("agent_prompt_text", "")
-            payload.setdefault("evidence_guidance_text", "")
-            serialized.append(payload)
+            serialized.append(dict(item))
     return serialized

@@ -30,7 +30,9 @@ class JobRubricItem(Base):
     criterion_type: Mapped[str] = mapped_column(String(32), nullable=False)
     weight_input: Mapped[float] = mapped_column(Float, nullable=False)
     weight_normalized: Mapped[float | None] = mapped_column(Float, nullable=True)
-    scoring_standard_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    scoring_standard_items: Mapped[list[dict[str, Any]]] = mapped_column(
+        "scoring_standard_items_json", JSON, nullable=False, default=list
+    )
     agent_prompt_text: Mapped[str] = mapped_column(Text, nullable=False)
     evidence_guidance_text: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

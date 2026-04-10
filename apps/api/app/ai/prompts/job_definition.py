@@ -13,7 +13,7 @@ def build_create_draft_from_description_prompt(description_text: str) -> str:
 3. rubric_items 必须同时包含 weighted 和 hard_requirement 的合理划分。
 4. hard_requirement 项必须设置 weight_input=100。
 5. 不要生成 weight_normalized，后端会在接收后统一计算。
-6. 不要生成 scoring_standard_json。
+6. 不要生成 scoring_standard_items。
 7. 不要生成 agent_prompt_text 和 evidence_guidance_text。
 8. 不要输出额外说明，不要输出 markdown。
 
@@ -36,7 +36,7 @@ def build_create_draft_from_form_prompt(form_payload: dict) -> str:
 4. rubric_items 需要覆盖岗位最重要的评估维度，并同时区分 weighted 与 hard_requirement。
 5. hard_requirement 项必须设置 weight_input=100。
 6. 不要生成 weight_normalized，后端会在接收后统一计算。
-7. 不要生成 scoring_standard_json、agent_prompt_text、evidence_guidance_text。
+7. 不要生成 scoring_standard_items、agent_prompt_text、evidence_guidance_text。
 8. 不要输出额外说明，不要输出 markdown。
 
 岗位基础信息如下：
@@ -97,7 +97,7 @@ def build_job_agent_edit_prompt(
 1. 输出必须符合给定 JSON Schema。
 2. 返回新的 `description_text` 和完整的 `rubric_items`。
 3. `rubric_items` 必须保留完整的名称、说明、criterion_type 和权重。
-4. 不要生成 scoring_standard_json、agent_prompt_text、evidence_guidance_text。
+4. 不要生成 scoring_standard_items、agent_prompt_text、evidence_guidance_text。
 5. hard_requirement 项必须设置 `weight_input=100`。
 6. 不要生成 `weight_normalized`，后端会在接收后统一计算。
 7. 不要输出额外说明，不要输出 markdown。
@@ -140,7 +140,7 @@ def build_job_regenerate_prompt(
 2. 只基于原始输入、历史摘要、最近对话和必要上下文重新生成。
 3. 当前编辑区版本不会提供，请不要假设你已经看过当前编辑中的 JD 或 rubric。
 4. 返回新的 `description_text` 和完整的 `rubric_items`。
-5. 不要生成 scoring_standard_json、agent_prompt_text、evidence_guidance_text。
+5. 不要生成 scoring_standard_items、agent_prompt_text、evidence_guidance_text。
 6. 不要生成 `weight_normalized`，后端会在接收后统一计算。
 7. rubric_items 仍需满足 hard_requirement 与 weighted 的权重规则。
 8. 不要输出额外说明，不要输出 markdown。
@@ -174,19 +174,21 @@ def build_job_finalize_prompt(
     return f"""
 你是招聘系统中的岗位定稿助手。
 
-请只基于当前用户已经编辑好的最新职位描述和最新 rubric，为每个 rubric item 补全 `scoring_standard_json`、`agent_prompt_text`、`evidence_guidance_text`，输出严格 JSON。
+请只基于当前用户已经编辑好的最新职位描述和最新 rubric，重新生成最终 `title`、最终 `summary`，并为每个 rubric item 补全 `scoring_standard_items`、`agent_prompt_text`、`evidence_guidance_text`，输出严格 JSON。
 
 要求：
 1. 输出必须符合给定 JSON Schema。
-2. 只返回 `rubric_items`。
-3. 每个 item 只返回 `sort_order`、`scoring_standard_json`、`agent_prompt_text`、`evidence_guidance_text`。
-4. `scoring_standard_json` 必须使用数组形式，每一项都必须是 {{ "key": "...", "value": "..." }}。
-5. `hard_requirement` 项应生成三档标准：`满足`、`部分满足`、`不满足`。
-6. `weighted` 项应生成五档标准：`5`、`4`、`3`、`2`、`1`。
-7. `agent_prompt_text` 必须明确告诉后续 Candidate 分析如何判断该维度。
-8. `evidence_guidance_text` 必须明确说明应该优先收集哪些证据。
-9. 不要参考任何原始输入、历史输入或旧版本定义，只使用下面提供的当前最新内容。
-10. 不要修改或重写 rubric 的其他字段，不要输出额外说明，不要输出 markdown。
+2. 返回 `title`、`summary` 和 `rubric_items`。
+3. `title` 应准确概括当前岗位，不要引用旧版本或过程性措辞。
+4. `summary` 应概括岗位定位、关键职责和评估重点，适合用于列表/详情摘要展示。
+5. 每个 item 只返回 `sort_order`、`scoring_standard_items`、`agent_prompt_text`、`evidence_guidance_text`。
+6. `scoring_standard_items` 必须使用数组形式，每一项都必须是 {{ "key": "...", "value": "..." }}。
+7. `hard_requirement` 项应生成三档标准：`满足`、`部分满足`、`不满足`。
+8. `weighted` 项应生成五档标准：`5`、`4`、`3`、`2`、`1`。
+9. `agent_prompt_text` 必须明确告诉后续 Candidate 分析如何判断该维度。
+10. `evidence_guidance_text` 必须明确说明应该优先收集哪些证据。
+11. 不要参考任何原始输入、历史输入或旧版本定义，只使用下面提供的当前最新内容。
+12. 不要修改或重写 rubric 的其他字段，不要输出额外说明，不要输出 markdown。
 
 当前职位描述：
 {description_text}

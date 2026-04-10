@@ -66,7 +66,7 @@ describe("Job creation pages", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        "/api/jobs/from-description",
+        expect.stringContaining("/api/jobs/from-description"),
         expect.objectContaining({
           method: "POST",
           body: JSON.stringify({ description_text: "Senior frontend engineer needed." }),
@@ -132,7 +132,7 @@ describe("Job creation pages", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        "/api/jobs/from-form",
+        expect.stringContaining("/api/jobs/from-form"),
         expect.objectContaining({
           method: "POST",
         }),

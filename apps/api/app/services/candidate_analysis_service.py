@@ -146,7 +146,7 @@ class CandidateAnalysisService:
             "criterion_type": rubric_item.criterion_type,
             "weight_input": rubric_item.weight_input,
             "weight_normalized": rubric_item.weight_normalized,
-            "scoring_standard_json": rubric_item.scoring_standard_json,
+            "scoring_standard_items": rubric_item.scoring_standard_items,
             "agent_prompt_text": rubric_item.agent_prompt_text,
             "evidence_guidance_text": rubric_item.evidence_guidance_text,
         }

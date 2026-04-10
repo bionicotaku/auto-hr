@@ -4,8 +4,6 @@ from app.ai.client import OpenAIResponsesClient
 from app.ai.prompts.job_definition import build_job_finalize_prompt
 from app.schemas.ai.job_definition import (
     JobFinalizeScoringResponseSchema,
-    build_job_definition_openai_schema,
-    normalize_job_definition_payload,
 )
 
 
@@ -26,9 +24,9 @@ class JobDefinitionFinalizeWorkflow:
         payload = self.client.generate_structured_output(
             prompt=prompt,
             schema_name="job_finalize_response_schema",
-            schema=build_job_definition_openai_schema(JobFinalizeScoringResponseSchema.model_json_schema()),
+            schema=JobFinalizeScoringResponseSchema.model_json_schema(),
         )
         try:
-            return JobFinalizeScoringResponseSchema.model_validate(normalize_job_definition_payload(payload))
-        except (ValidationError, ValueError) as exc:
+            return JobFinalizeScoringResponseSchema.model_validate(payload)
+        except ValidationError as exc:
             raise ValueError("LLM returned invalid job finalize schema.") from exc

@@ -48,7 +48,7 @@ def test_create_draft_workflow_returns_valid_schema() -> None:
     assert isinstance(draft, JobDraftSchema)
     assert draft.title == "Staff AI Recruiter"
     assert "weight_normalized" not in client.calls[0]["schema"]["$defs"]["JobRubricItemDraftSchema"]["properties"]
-    assert "scoring_standard_json" not in client.calls[0]["schema"]["$defs"]["JobRubricItemDraftSchema"]["properties"]
+    assert "scoring_standard_items" not in client.calls[0]["schema"]["$defs"]["JobRubricItemDraftSchema"]["properties"]
     assert "agent_prompt_text" not in client.calls[0]["schema"]["$defs"]["JobRubricItemDraftSchema"]["properties"]
     assert "evidence_guidance_text" not in client.calls[0]["schema"]["$defs"]["JobRubricItemDraftSchema"]["properties"]
 

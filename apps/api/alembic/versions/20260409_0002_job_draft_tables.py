@@ -53,7 +53,7 @@ def upgrade() -> None:
         sa.Column("criterion_type", sa.String(length=32), nullable=False),
         sa.Column("weight_input", sa.Float(), nullable=False),
         sa.Column("weight_normalized", sa.Float(), nullable=True),
-        sa.Column("scoring_standard_json", sa.JSON(), nullable=False),
+        sa.Column("scoring_standard_items_json", sa.JSON(), nullable=False),
         sa.Column("agent_prompt_text", sa.Text(), nullable=False),
         sa.Column("evidence_guidance_text", sa.Text(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),

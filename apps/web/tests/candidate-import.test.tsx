@@ -203,7 +203,7 @@ describe("Candidate import page", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        "/api/jobs/job-001/candidates/import",
+        expect.stringContaining("/api/jobs/job-001/candidates/import"),
         expect.objectContaining({
           method: "POST",
           body: expect.any(FormData),

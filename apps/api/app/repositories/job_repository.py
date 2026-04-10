@@ -17,7 +17,7 @@ class JobRubricItemCreateData:
     criterion_type: str
     weight_input: float
     weight_normalized: float | None
-    scoring_standard_json: dict[str, Any]
+    scoring_standard_items: list[dict[str, Any]]
     agent_prompt_text: str
     evidence_guidance_text: str
 
@@ -70,7 +70,7 @@ class JobRepository:
                     criterion_type=item.criterion_type,
                     weight_input=item.weight_input,
                     weight_normalized=item.weight_normalized,
-                    scoring_standard_json=item.scoring_standard_json,
+                    scoring_standard_items=item.scoring_standard_items,
                     agent_prompt_text=item.agent_prompt_text,
                     evidence_guidance_text=item.evidence_guidance_text,
                 )
@@ -127,7 +127,7 @@ class JobRepository:
                     criterion_type=item.criterion_type,
                     weight_input=item.weight_input,
                     weight_normalized=item.weight_normalized,
-                    scoring_standard_json=item.scoring_standard_json,
+                    scoring_standard_items=item.scoring_standard_items,
                     agent_prompt_text=item.agent_prompt_text,
                     evidence_guidance_text=item.evidence_guidance_text,
                 )

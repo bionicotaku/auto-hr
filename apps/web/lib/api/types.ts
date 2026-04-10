@@ -40,7 +40,15 @@ export type JobEditorMessageDto = {
   content: string;
 };
 
-export type JobRubricItemDto = {
+export type JobRubricDraftItemDto = {
+  sort_order: number;
+  name: string;
+  description: string;
+  criterion_type: "weighted" | "hard_requirement";
+  weight_input: number;
+};
+
+export type JobRubricFinalItemDto = {
   id?: string;
   sort_order: number;
   name: string;
@@ -48,7 +56,7 @@ export type JobRubricItemDto = {
   criterion_type: "weighted" | "hard_requirement";
   weight_input: number;
   weight_normalized: number | null;
-  scoring_standard_json: Record<string, unknown>;
+  scoring_standard_items: Array<{ key: string; value: string }>;
   agent_prompt_text: string;
   evidence_guidance_text: string;
 };
@@ -68,12 +76,12 @@ export type JobEditResponseDto = {
   created_at: string;
   updated_at: string;
   finalized_at: string | null;
-  rubric_items: JobRubricItemDto[];
+  rubric_items: JobRubricDraftItemDto[];
 };
 
 export type JobChatRequestDto = {
   description_text: string;
-  rubric_items: JobRubricItemDto[];
+  rubric_items: JobRubricDraftItemDto[];
   recent_messages: JobEditorMessageDto[];
   user_input: string;
 };
@@ -86,7 +94,7 @@ export type JobGeneratedContentRequestDto = JobChatRequestDto;
 
 export type JobGeneratedContentResponseDto = {
   description_text: string;
-  rubric_items: JobRubricItemDto[];
+  rubric_items: JobRubricDraftItemDto[];
 };
 
 export type JobRegenerateRequestDto = {
@@ -96,7 +104,7 @@ export type JobRegenerateRequestDto = {
 
 export type JobFinalizeRequestDto = {
   description_text: string;
-  rubric_items: JobRubricItemDto[];
+  rubric_items: JobRubricDraftItemDto[];
 };
 
 export type JobFinalizeResponseDto = {

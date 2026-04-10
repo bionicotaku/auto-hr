@@ -122,7 +122,7 @@ def build_rubric_items(count: int = 3) -> list[dict]:
                 "criterion_type": criterion_type,
                 "weight_input": 100 if criterion_type == "hard_requirement" else 100 / max(count - 1, 1),
                 "weight_normalized": None if criterion_type == "hard_requirement" else round(1 / max(count - 1, 1), 4),
-                "scoring_standard_json": {"score_5": "Excellent"},
+                "scoring_standard_items": [{"key": "score_5", "value": "Excellent"}],
                 "agent_prompt_text": f"Judge criterion {index + 1}",
                 "evidence_guidance_text": "Look for examples",
             }

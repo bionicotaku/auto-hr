@@ -37,7 +37,7 @@ def valid_finalize_scoring_items() -> list[dict]:
     return [
         {
             "sort_order": 1,
-            "scoring_standard_json": [
+            "scoring_standard_items": [
                 {"key": "score_5", "value": "Excellent"},
                 {"key": "score_3", "value": "Acceptable"},
             ],
@@ -118,6 +118,8 @@ def test_regenerate_workflow_uses_original_inputs_only() -> None:
 def test_finalize_workflow_returns_valid_schema() -> None:
     client = FakeClient(
         {
+            "title": "Senior Recruiting Operator",
+            "summary": "Own the recruiting funnel and maintain a clear hiring quality bar.",
             "rubric_items": valid_finalize_scoring_items(),
         }
     )
@@ -129,6 +131,8 @@ def test_finalize_workflow_returns_valid_schema() -> None:
     )
 
     assert isinstance(response, JobFinalizeScoringResponseSchema)
+    assert response.title == "Senior Recruiting Operator"
+    assert response.summary == "Own the recruiting funnel and maintain a clear hiring quality bar."
     assert response.rubric_items[0].sort_order == 1
     assert response.rubric_items[0].agent_prompt_text == "Judge execution in real project work."
     prompt = client.calls[0]["prompt"]
