@@ -1,4 +1,4 @@
-import { JobDraftEditPlaceholder } from "@/components/job/new/JobDraftEditPlaceholder";
+import { JobEditWorkspace } from "@/components/job/edit/JobEditWorkspace";
 
 type JobEditPageProps = {
   params: Promise<{ jobId: string }>;
@@ -7,6 +7,5 @@ type JobEditPageProps = {
 export default async function JobEditPage({ params }: JobEditPageProps) {
   const { jobId } = await params;
 
-  return <JobDraftEditPlaceholder jobId={jobId} />;
+  return <JobEditWorkspace jobId={jobId} />;
 }
-

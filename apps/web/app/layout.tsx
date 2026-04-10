@@ -5,14 +5,14 @@ import { Providers } from "@/app/providers";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "auto-hr",
-  description: "AI-native recruiting demo for JD and rubric driven workflows.",
+  title: "Auto HR",
+  description: "招聘工作台",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="zh-CN">
-      <body>
+    <html lang="zh-CN" suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

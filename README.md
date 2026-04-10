@@ -21,6 +21,11 @@
 设计、架构、规范、实施类文档统一放在 [`docs/`](/Users/evan/Downloads/auto-hr/docs/README.md)。
 各工程目录自己的 `README.md` 保留在目录内部，用于说明该目录职责、关键文件和局部约束。
 
+补充约束：
+
+- 用户界面不得展示技术实现细节，这类内容只允许留在 `docs/` 或工程目录 `README.md`
+- 如果使用子 agent，统一只允许 `gpt-5.4`
+
 - [文档索引](/Users/evan/Downloads/auto-hr/docs/README.md)
 - [工程实现文档](/Users/evan/Downloads/auto-hr/docs/工程实现文档.md)
 - [实施步骤文档](/Users/evan/Downloads/auto-hr/docs/实施步骤文档.md)

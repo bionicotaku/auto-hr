@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import { Badge } from "@/components/ui/Badge";
+import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
@@ -40,38 +40,30 @@ export function JobDescriptionDraftForm() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.18),_transparent_30%),linear-gradient(180deg,_#f7fbf8_0%,_#eef6ff_48%,_#f7f7f1_100%)] px-6 py-10 text-slate-950 sm:px-10 lg:px-12">
-      <div className="absolute inset-x-0 top-0 h-52 bg-[linear-gradient(90deg,_rgba(255,255,255,0.5),_rgba(255,255,255,0.08),_rgba(255,255,255,0.5))] blur-3xl" />
+    <AppShell
+      title="导入职位描述"
+      description="粘贴已有职位描述，生成岗位初稿。"
+      actions={
+        <Button href="/jobs/new" variant="secondary">
+          返回
+        </Button>
+      }
+      className="max-w-4xl"
+    >
+      <Card className="space-y-6">
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold tracking-tight text-slate-950">职位描述</h2>
+          <p className="text-sm leading-6 text-slate-600">建议包含岗位职责、任职要求、地点和工作方式。</p>
+        </div>
 
-      <div className="relative mx-auto flex w-full max-w-4xl flex-col gap-8">
-        <section className="grid gap-6 rounded-[32px] border border-white/70 bg-white/78 p-8 shadow-[0_30px_80px_rgba(15,23,42,0.10)] backdrop-blur xl:p-10">
-          <div className="flex flex-wrap items-center gap-3">
-            <Badge tone="accent">已有描述导入</Badge>
-            <Badge tone="neutral">draft 创建</Badge>
-          </div>
-
-          <div className="space-y-4">
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">
-              Job creation
-            </p>
-            <h1 className="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              输入原始职位描述，系统会生成 draft Job 并跳转编辑页。
-            </h1>
-            <p className="max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-              失败时仅展示错误信息，输入内容会保留在当前页面，便于继续修改后重新提交。
-            </p>
-          </div>
-        </section>
-
-        <Card className="space-y-6">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-3">
               <label className="text-sm font-semibold text-slate-800" htmlFor="job-description">
-                原始工作描述
+                职位描述
               </label>
               <Textarea
                 id="job-description"
-                placeholder="粘贴完整的职位描述原文，包含岗位职责、要求和背景信息。"
+                placeholder="粘贴完整的职位描述。"
                 value={description}
                 onChange={(event) => {
                   setDescription(event.target.value);
@@ -99,7 +91,7 @@ export function JobDescriptionDraftForm() {
                     生成中
                   </span>
                 ) : (
-                  "生成"
+                  "生成岗位初稿"
                 )}
               </Button>
               <Button
@@ -109,12 +101,11 @@ export function JobDescriptionDraftForm() {
                   router.push("/jobs");
                 }}
               >
-                取消
+                返回
               </Button>
             </div>
           </form>
-        </Card>
-      </div>
-    </main>
+      </Card>
+    </AppShell>
   );
 }

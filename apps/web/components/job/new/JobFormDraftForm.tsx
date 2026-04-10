@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import { Badge } from "@/components/ui/Badge";
+import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -68,7 +68,7 @@ export function JobFormDraftForm() {
     event.preventDefault();
 
     if (!formState.title.trim() || !formState.department.trim() || !formState.location.trim() || !formState.seniorityTarget.trim()) {
-      setSubmitError("请至少填写岗位名称、部门、地点和目标资历。");
+      setSubmitError("请补全岗位名称、部门、地点和资历要求。");
       return;
     }
 
@@ -85,7 +85,6 @@ export function JobFormDraftForm() {
           : `办公方式：${formState.onsiteRemoteMode}`,
         requirements_summary: formState.requiredExperienceSummary.trim() || undefined,
       });
-      // 成功后只做跳转，不在前端缓存 draft 结果。
       router.push(`/jobs/${result.jobId}/edit`);
     } catch (error) {
       setSubmitError(getJobApiErrorMessage(error));
@@ -93,30 +92,22 @@ export function JobFormDraftForm() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.18),_transparent_30%),linear-gradient(180deg,_#f7fbf8_0%,_#eef6ff_48%,_#f7f7f1_100%)] px-6 py-10 text-slate-950 sm:px-10 lg:px-12">
-      <div className="absolute inset-x-0 top-0 h-52 bg-[linear-gradient(90deg,_rgba(255,255,255,0.5),_rgba(255,255,255,0.08),_rgba(255,255,255,0.5))] blur-3xl" />
+    <AppShell
+      title="填写岗位信息"
+      description="先补全关键岗位信息，再生成岗位初稿。"
+      actions={
+        <Button href="/jobs/new" variant="secondary">
+          返回
+        </Button>
+      }
+      className="max-w-5xl"
+    >
+      <Card className="space-y-8">
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold tracking-tight text-slate-950">岗位信息</h2>
+          <p className="text-sm leading-6 text-slate-600">先填最关键的岗位信息，其他内容进入编辑页后再继续调整。</p>
+        </div>
 
-      <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-8">
-        <section className="grid gap-6 rounded-[32px] border border-white/70 bg-white/78 p-8 shadow-[0_30px_80px_rgba(15,23,42,0.10)] backdrop-blur xl:p-10">
-          <div className="flex flex-wrap items-center gap-3">
-            <Badge tone="success">基础信息生成</Badge>
-            <Badge tone="neutral">draft 创建</Badge>
-          </div>
-
-          <div className="space-y-4">
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">
-              Structured input
-            </p>
-            <h1 className="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              填写岗位基础信息，系统生成 draft Job 后进入编辑页。
-            </h1>
-            <p className="max-w-3xl text-base leading-7 text-slate-600 sm:text-lg">
-              这一页只保存当前表单状态，提交失败会保留所有输入值。成功后直接跳转到 `/jobs/[jobId]/edit`。
-            </p>
-          </div>
-        </section>
-
-        <Card className="space-y-8">
           <form className="space-y-8" onSubmit={handleSubmit}>
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-3">
@@ -157,7 +148,7 @@ export function JobFormDraftForm() {
 
               <div className="space-y-3">
                 <label className="text-sm font-semibold text-slate-800" htmlFor="job-employment-type">
-                  雇佣类型
+                  用工类型
                 </label>
                 <Select
                   id="job-employment-type"
@@ -174,7 +165,7 @@ export function JobFormDraftForm() {
 
               <div className="space-y-3">
                 <label className="text-sm font-semibold text-slate-800" htmlFor="job-seniority-target">
-                  目标资历
+                  资历要求
                 </label>
                 <Input
                   id="job-seniority-target"
@@ -205,11 +196,11 @@ export function JobFormDraftForm() {
             <div className="grid gap-5 lg:grid-cols-2">
               <div className="space-y-3">
                 <label className="text-sm font-semibold text-slate-800" htmlFor="required-experience-summary">
-                  必要经验摘要
+                  必要要求
                 </label>
                 <Textarea
                   id="required-experience-summary"
-                  placeholder="例如：需要有 B2B SaaS / React / TypeScript 经验。"
+                  placeholder="例如：需要有 React、TypeScript 或招聘相关经验。"
                   value={formState.requiredExperienceSummary}
                   onChange={(event) => updateField("requiredExperienceSummary", event.target.value)}
                 />
@@ -217,11 +208,11 @@ export function JobFormDraftForm() {
 
               <div className="space-y-3">
                 <label className="text-sm font-semibold text-slate-800" htmlFor="preferred-experience-summary">
-                  偏好经验摘要
+                  加分项
                 </label>
                 <Textarea
                   id="preferred-experience-summary"
-                  placeholder="例如：希望有 AI 产品、招聘产品或设计系统经验。"
+                  placeholder="例如：有 AI 产品、招聘产品或设计系统经验。"
                   value={formState.preferredExperienceSummary}
                   onChange={(event) => updateField("preferredExperienceSummary", event.target.value)}
                 />
@@ -245,7 +236,7 @@ export function JobFormDraftForm() {
                     生成中
                   </span>
                 ) : (
-                  "生成"
+                  "生成岗位初稿"
                 )}
               </Button>
               <Button
@@ -255,12 +246,11 @@ export function JobFormDraftForm() {
                   router.push("/jobs");
                 }}
               >
-                取消
+                返回
               </Button>
             </div>
           </form>
-        </Card>
-      </div>
-    </main>
+      </Card>
+    </AppShell>
   );
 }

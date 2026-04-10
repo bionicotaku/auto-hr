@@ -41,12 +41,12 @@ describe("Job creation pages", () => {
   it("renders the new job entry page", () => {
     renderWithProviders(<JobNewPage />);
 
-    expect(screen.getByRole("heading", { name: "选择一个创建入口，先生成 draft Job，再进入统一编辑页。" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "导入原始描述" })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: "新建岗位" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "导入职位描述" })).toHaveAttribute(
       "href",
       "/jobs/new/from-description",
     );
-    expect(screen.getByRole("link", { name: "填写基础信息" })).toHaveAttribute("href", "/jobs/new/from-form");
+    expect(screen.getByRole("link", { name: "填写岗位信息" })).toHaveAttribute("href", "/jobs/new/from-form");
   });
 
   it("submits the description flow and navigates to the edit page on success", async () => {
@@ -55,10 +55,10 @@ describe("Job creation pages", () => {
 
     renderWithProviders(<JobNewFromDescriptionPage />);
 
-    fireEvent.change(screen.getByLabelText("原始工作描述"), {
+    fireEvent.change(screen.getByLabelText("职位描述"), {
       target: { value: "Senior frontend engineer needed." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "生成" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成岗位初稿" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -78,11 +78,11 @@ describe("Job creation pages", () => {
 
     renderWithProviders(<JobNewFromDescriptionPage />);
 
-    const textarea = screen.getByLabelText("原始工作描述");
+    const textarea = screen.getByLabelText("职位描述");
     fireEvent.change(textarea, {
       target: { value: "Broken description" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "生成" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成岗位初稿" }));
 
     expect(await screen.findByText("描述解析失败")).toBeInTheDocument();
     expect(textarea).toHaveValue("Broken description");
@@ -104,10 +104,10 @@ describe("Job creation pages", () => {
     fireEvent.change(screen.getByLabelText("地点"), {
       target: { value: "Remote" },
     });
-    fireEvent.change(screen.getByLabelText("目标资历"), {
+    fireEvent.change(screen.getByLabelText("资历要求"), {
       target: { value: "Senior" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "生成" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成岗位初稿" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -136,10 +136,10 @@ describe("Job creation pages", () => {
     fireEvent.change(screen.getByLabelText("地点"), {
       target: { value: "Remote" },
     });
-    fireEvent.change(screen.getByLabelText("目标资历"), {
+    fireEvent.change(screen.getByLabelText("资历要求"), {
       target: { value: "Senior" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "生成" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成岗位初稿" }));
 
     expect(await screen.findByText("表单校验失败")).toBeInTheDocument();
     expect(titleInput).toHaveValue("Senior Frontend Engineer");
