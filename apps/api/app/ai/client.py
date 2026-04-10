@@ -2,7 +2,6 @@ import json
 import logging
 from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate
 from openai import APIConnectionError, APIStatusError, APITimeoutError, BadRequestError, OpenAI
 
 from app.core.config import get_settings
@@ -25,13 +24,6 @@ class OpenAIResponsesClient:
         schema_name: str,
         schema: dict[str, Any],
     ) -> dict[str, Any]:
-        # Prompt rendering is standardized through LangChain templates,
-        # while the actual generation uses the OpenAI Responses API.
-        message = ChatPromptTemplate.from_messages([("human", "{prompt}")]).invoke(
-            {"prompt": prompt}
-        )
-        rendered_prompt = message.messages[0].content
-
         logger.info(
             "LLM request started: schema=%s model=%s mode=prompt",
             schema_name,
@@ -44,7 +36,7 @@ class OpenAIResponsesClient:
                 input=[
                     {
                         "role": "user",
-                        "content": [{"type": "input_text", "text": rendered_prompt}],
+                        "content": [{"type": "input_text", "text": prompt}],
                     }
                 ],
                 text={

@@ -45,7 +45,12 @@ class JobRubricItemFinalSchema(JobRubricItemBaseSchema):
     evidence_guidance_text: str = Field(min_length=1, max_length=2000)
 
 
-class JobFinalizeEnrichmentItemSchema(BaseModel):
+class JobFinalizeTitleSummarySchema(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    summary: str = Field(min_length=1, max_length=2000)
+
+
+class JobFinalizeRubricItemEnrichmentSchema(BaseModel):
     sort_order: int = Field(ge=1)
     scoring_standard_items: list[ScoringStandardItemSchema] = Field(min_length=1, max_length=10)
     agent_prompt_text: str = Field(min_length=1, max_length=4000)
@@ -71,7 +76,7 @@ class JobAgentEditResponseSchema(JobDraftSchema):
 class JobFinalizeScoringResponseSchema(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     summary: str = Field(min_length=1, max_length=2000)
-    rubric_items: list[JobFinalizeEnrichmentItemSchema] = Field(min_length=1, max_length=12)
+    rubric_items: list[JobFinalizeRubricItemEnrichmentSchema] = Field(min_length=1, max_length=12)
 
 
 def rubric_items_to_json(

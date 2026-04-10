@@ -150,7 +150,7 @@ def build_job_agent_edit_prompt(
 """.strip()
 
 
-def build_job_finalize_prompt(
+def build_job_finalize_title_summary_prompt(
     *,
     description_text: str,
     responsibilities: list[str],
@@ -161,23 +161,59 @@ def build_job_finalize_prompt(
     serialized_responsibilities = json.dumps(responsibilities, ensure_ascii=False, indent=2)
     serialized_skills = json.dumps(skills, ensure_ascii=False, indent=2)
     return f"""
+    你是招聘系统中的岗位定稿助手。
+
+    请只基于当前用户已经编辑好的最新职位描述和最新 rubric，重新生成最终 `title` 和最终 `summary`，输出严格 JSON。
+
+    要求：
+    1. 输出必须符合给定 JSON Schema。
+    2. 只返回 `title` 和 `summary`。
+    3. `title` 应准确概括当前岗位，不要引用旧版本或过程性措辞。
+    4. `summary` 应概括岗位定位、关键职责和评估重点，适合用于列表/详情摘要展示。
+    5. 不要输出 rubric enrichment，不要输出额外说明，不要输出 markdown。
+    6. 不要参考任何原始输入、历史输入或旧版本定义，只使用下面提供的当前最新内容。
+
+    当前职位描述：
+    {description_text}
+
+当前 responsibilities：
+{serialized_responsibilities}
+
+当前 skills：
+{serialized_skills}
+
+    当前 rubric：
+    {serialized_rubric}
+    """.strip()
+
+
+def build_job_finalize_rubric_item_prompt(
+    *,
+    description_text: str,
+    responsibilities: list[str],
+    skills: list[str],
+    rubric_overview: list[dict],
+    rubric_item: dict,
+) -> str:
+    serialized_responsibilities = json.dumps(responsibilities, ensure_ascii=False, indent=2)
+    serialized_skills = json.dumps(skills, ensure_ascii=False, indent=2)
+    serialized_rubric_overview = json.dumps(rubric_overview, ensure_ascii=False, indent=2)
+    serialized_rubric_item = json.dumps(rubric_item, ensure_ascii=False, indent=2)
+    return f"""
 你是招聘系统中的岗位定稿助手。
 
-请只基于当前用户已经编辑好的最新职位描述和最新 rubric，重新生成最终 `title`、最终 `summary`，并为每个 rubric item 补全 `scoring_standard_items`、`agent_prompt_text`、`evidence_guidance_text`，输出严格 JSON。
+请只基于当前用户已经编辑好的最新职位描述和当前这一条 rubric，生成该项的评估 enrichment，输出严格 JSON。
 
 要求：
 1. 输出必须符合给定 JSON Schema。
-2. 返回 `title`、`summary` 和 `rubric_items`。
-3. `title` 应准确概括当前岗位，不要引用旧版本或过程性措辞。
-4. `summary` 应概括岗位定位、关键职责和评估重点，适合用于列表/详情摘要展示。
-5. 每个 item 只返回 `sort_order`、`scoring_standard_items`、`agent_prompt_text`、`evidence_guidance_text`。
-6. `scoring_standard_items` 必须使用数组形式，每一项都必须是 {{ "key": "...", "value": "..." }}。
-7. `hard_requirement` 项应生成三档标准：`满足`、`部分满足`、`不满足`。
-8. `weighted` 项应生成五档标准：`5`、`4`、`3`、`2`、`1`。
-9. `agent_prompt_text` 必须明确告诉后续 Candidate 分析如何判断该维度。
-10. `evidence_guidance_text` 必须明确说明应该优先收集哪些证据。
-11. 不要参考任何原始输入、历史输入或旧版本定义，只使用下面提供的当前最新内容。
-12. 不要修改或重写 rubric 的其他字段，不要输出额外说明，不要输出 markdown。
+2. 只返回当前这一项的 `sort_order`、`scoring_standard_items`、`agent_prompt_text`、`evidence_guidance_text`。
+3. `sort_order` 必须与当前 rubric item 完全一致。
+4. `scoring_standard_items` 必须使用数组形式，每一项都必须是 {{ "key": "...", "value": "..." }}。
+5. `hard_requirement` 项应生成三档标准：`满足`、`部分满足`、`不满足`。
+6. `weighted` 项应生成五档标准：`5`、`4`、`3`、`2`、`1`。
+7. `agent_prompt_text` 必须明确告诉后续 Candidate 分析如何判断该维度。
+8. `evidence_guidance_text` 必须明确说明应该优先收集哪些证据。
+9. 不要修改当前 rubric item 的基础字段，不要输出别的 rubric item，不要输出 markdown。
 
 当前职位描述：
 {description_text}
@@ -188,6 +224,9 @@ def build_job_finalize_prompt(
 当前 skills：
 {serialized_skills}
 
-当前 rubric：
-{serialized_rubric}
+当前岗位 rubric 概览：
+{serialized_rubric_overview}
+
+当前 rubric item：
+{serialized_rubric_item}
 """.strip()

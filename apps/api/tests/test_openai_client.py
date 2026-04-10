@@ -74,7 +74,7 @@ def test_openai_json_schema_normalization_requires_nullable_fields_and_removes_d
 
     draft_schema = client._to_openai_json_schema(JobDraftSchema.model_json_schema())
     schema = client._to_openai_json_schema(JobFinalizeScoringResponseSchema.model_json_schema())
-    finalize_rubric_schema = schema["$defs"]["JobFinalizeEnrichmentItemSchema"]
+    finalize_rubric_schema = schema["$defs"]["JobFinalizeRubricItemEnrichmentSchema"]
     draft_rubric_schema = draft_schema["$defs"]["JobRubricItemDraftSchema"]
     structured_info_schema = draft_schema["$defs"]["JobStructuredInfoSchema"]
 

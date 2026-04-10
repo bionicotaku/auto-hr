@@ -22,6 +22,12 @@ from app.workflows.job_definition.agent_edit import JobDefinitionAgentEditWorkfl
 from app.workflows.job_definition.chat import JobDefinitionChatWorkflow
 from app.workflows.job_definition.create_draft import JobDefinitionCreateDraftWorkflow
 from app.workflows.job_definition.finalize import JobDefinitionFinalizeWorkflow
+from app.workflows.job_definition.finalize_rubric_items import (
+    JobDefinitionFinalizeRubricItemsWorkflow,
+)
+from app.workflows.job_definition.finalize_title_summary import (
+    JobDefinitionFinalizeTitleSummaryWorkflow,
+)
 
 
 def get_job_service(session: Session, _: Settings) -> JobService:
@@ -33,7 +39,14 @@ def get_job_service(session: Session, _: Settings) -> JobService:
         draft_workflow=JobDefinitionCreateDraftWorkflow(client),
         chat_workflow=JobDefinitionChatWorkflow(client),
         agent_edit_workflow=JobDefinitionAgentEditWorkflow(client),
-        finalize_workflow=JobDefinitionFinalizeWorkflow(client),
+        finalize_workflow=JobDefinitionFinalizeWorkflow(
+            title_summary_workflow=JobDefinitionFinalizeTitleSummaryWorkflow(client),
+            rubric_items_workflow=JobDefinitionFinalizeRubricItemsWorkflow(
+                client,
+                concurrency_limit=6,
+                max_retries=1,
+            ),
+        ),
     )
 
 
