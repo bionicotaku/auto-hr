@@ -64,11 +64,8 @@ class JobChatResponseSchema(BaseModel):
     reply_text: str = Field(min_length=1, max_length=4000)
 
 
-class JobAgentEditResponseSchema(BaseModel):
-    description_text: str = Field(min_length=1, max_length=12000)
-    responsibilities: list[str] = Field(default_factory=list, max_length=50)
-    skills: list[str] = Field(default_factory=list, max_length=50)
-    rubric_items: list[JobRubricItemDraftSchema] = Field(min_length=1, max_length=12)
+class JobAgentEditResponseSchema(JobDraftSchema):
+    pass
 
 
 class JobFinalizeScoringResponseSchema(BaseModel):

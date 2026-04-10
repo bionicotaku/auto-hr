@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.exceptions import ConflictError, DomainValidationError
+from app.core.exceptions import DomainValidationError
 from app.repositories.job_repository import JobRepository
 from app.schemas.ai.job_definition import (
     JobAgentEditResponseSchema,
@@ -51,9 +51,18 @@ class StubAgentEditWorkflow:
     def run(self, **kwargs):
         self.calls.append(kwargs)
         return JobAgentEditResponseSchema(
+            title="New Recruiting Lead",
+            summary="Lead the recruiting motion with stronger hiring discipline.",
             description_text="New JD body",
-            responsibilities=["Own funnel", "Coordinate interview loop"],
-            skills=["Hiring ops", "Stakeholder management"],
+            structured_info_json={
+                "department": "Talent",
+                "location": "Hybrid",
+                "employment_type": "Full-time",
+                "seniority_level": "Lead",
+                "responsibilities": ["Own funnel", "Coordinate interview loop"],
+                "requirements": ["Recruiting depth"],
+                "skills": ["Hiring ops", "Stakeholder management"],
+            },
             rubric_items=make_job_draft().rubric_items,
         )
 
@@ -210,6 +219,46 @@ def test_chat_on_draft_does_not_persist_editor_changes(db_session) -> None:
     assert chat_workflow.calls[0]["skills"] == ["Recruiting ops"]
 
 
+def test_chat_on_active_job_returns_reply_text(db_session) -> None:
+    chat_workflow = StubChatWorkflow()
+    finalize_workflow = StubFinalizeWorkflow(result=make_finalize_result())
+    service = JobService(
+        db_session,
+        JobRepository(),
+        StubWorkflow(result=make_job_draft()),
+        chat_workflow=chat_workflow,
+        finalize_workflow=finalize_workflow,
+    )
+    created = service.create_draft_from_description(
+        CreateJobFromDescriptionRequest(description_text="Original raw description input.")
+    )
+    draft_payload = service.get_job_edit_payload(created.job_id)
+    service.finalize_draft(
+        created.job_id,
+        JobFinalizeRequest(
+            description_text="Locally finalized description",
+            responsibilities=["Own funnel"],
+            skills=["Hiring ops"],
+            rubric_items=draft_payload.rubric_items,
+        ),
+    )
+
+    response = service.chat_on_draft(
+        created.job_id,
+        JobChatRequest(
+            description_text="Active local description",
+            responsibilities=["Run kickoff"],
+            skills=["Recruiting ops"],
+            rubric_items=service.get_job_edit_payload(created.job_id).rubric_items,
+            recent_messages=[],
+            user_input="请继续给建议",
+        ),
+    )
+
+    assert response.reply_text == "建议保持职责结构清晰。"
+    assert chat_workflow.calls[0]["description_text"] == "Active local description"
+
+
 def test_agent_edit_on_draft_returns_generated_content_without_writing(db_session) -> None:
     agent_workflow = StubAgentEditWorkflow()
     service = JobService(
@@ -236,11 +285,55 @@ def test_agent_edit_on_draft_returns_generated_content_without_writing(db_sessio
 
     loaded = service.get_job_edit_payload(created.job_id)
     assert response.description_text == "New JD body"
+    assert response.title == "New Recruiting Lead"
+    assert response.summary == "Lead the recruiting motion with stronger hiring discipline."
+    assert response.structured_info_json["location"] == "Hybrid"
     assert response.responsibilities == ["Own funnel", "Coordinate interview loop"]
     assert response.skills == ["Hiring ops", "Stakeholder management"]
     assert "weight_normalized" not in response.rubric_items[0].model_dump()
     assert loaded.description_text == "JD body"
     assert agent_workflow.calls[0]["user_input"] == "直接应用新的版本"
+
+
+def test_agent_edit_on_active_job_returns_generated_content_without_writing(db_session) -> None:
+    agent_workflow = StubAgentEditWorkflow()
+    finalize_workflow = StubFinalizeWorkflow(result=make_finalize_result())
+    service = JobService(
+        db_session,
+        JobRepository(),
+        StubWorkflow(result=make_job_draft()),
+        agent_edit_workflow=agent_workflow,
+        finalize_workflow=finalize_workflow,
+    )
+    created = service.create_draft_from_description(
+        CreateJobFromDescriptionRequest(description_text="Original raw description input.")
+    )
+    draft_payload = service.get_job_edit_payload(created.job_id)
+    service.finalize_draft(
+        created.job_id,
+        JobFinalizeRequest(
+            description_text="Locally finalized description",
+            responsibilities=["Own funnel"],
+            skills=["Hiring ops"],
+            rubric_items=draft_payload.rubric_items,
+        ),
+    )
+
+    response = service.agent_edit_draft(
+        created.job_id,
+        JobAgentEditRequest(
+            description_text="Active local description",
+            responsibilities=["Run kickoff"],
+            skills=["Recruiting ops"],
+            rubric_items=service.get_job_edit_payload(created.job_id).rubric_items,
+            recent_messages=[],
+            user_input="直接改成新版",
+        ),
+    )
+
+    assert response.title == "New Recruiting Lead"
+    assert response.description_text == "New JD body"
+    assert agent_workflow.calls[0]["description_text"] == "Active local description"
 
 
 def test_finalize_draft_updates_job_to_active_and_replaces_rubric(db_session) -> None:
@@ -277,7 +370,10 @@ def test_finalize_draft_updates_job_to_active_and_replaces_rubric(db_session) ->
     assert loaded_after.finalized_at is not None
     assert len(loaded_after.rubric_items) == 2
     final_job = service.job_repository.get_job_for_edit(db_session, created.job_id)
-    assert sum(item.weight_input for item in final_job.rubric_items if item.criterion_type == "weighted") == 100
+    weighted_items = [item for item in final_job.rubric_items if item.criterion_type == "weighted"]
+    assert len(weighted_items) == 1
+    assert weighted_items[0].weight_input == 99
+    assert weighted_items[0].weight_normalized == 1.0
     assert final_job.rubric_items[0].scoring_standard_items == [{"key": "score_5", "value": "Excellent"}]
     assert final_job.rubric_items[0].agent_prompt_text == "Judge execution"
     assert final_job.rubric_items[0].evidence_guidance_text == "Look for hiring throughput"
@@ -313,7 +409,7 @@ def test_finalize_failure_does_not_override_draft(db_session) -> None:
     assert loaded_after.finalized_at is None
 
 
-def test_finalize_rejects_active_job(db_session) -> None:
+def test_finalize_on_active_job_updates_in_place(db_session) -> None:
     finalize_workflow = StubFinalizeWorkflow(result=make_finalize_result())
     service = JobService(
         db_session,
@@ -335,16 +431,26 @@ def test_finalize_rejects_active_job(db_session) -> None:
         ),
     )
 
-    with pytest.raises(ConflictError):
-        service.finalize_draft(
-            created.job_id,
-            JobFinalizeRequest(
-                description_text="Second finalize attempt",
-                responsibilities=["Own funnel"],
-                skills=["Hiring ops"],
-                rubric_items=service.get_job_edit_payload(created.job_id).rubric_items,
-            ),
-        )
+    second_response = service.finalize_draft(
+        created.job_id,
+        JobFinalizeRequest(
+            description_text="Second finalize attempt",
+            responsibilities=["Own funnel", "Calibrate hiring bar"],
+            skills=["Hiring ops", "Structured interviews"],
+            rubric_items=service.get_job_edit_payload(created.job_id).rubric_items,
+        ),
+    )
+
+    loaded_after = service.get_job_edit_payload(created.job_id)
+    assert second_response.lifecycle_status == "active"
+    assert loaded_after.lifecycle_status == "active"
+    assert loaded_after.description_text == "Second finalize attempt"
+    assert loaded_after.responsibilities == ["Own funnel", "Calibrate hiring bar"]
+    assert loaded_after.skills == ["Hiring ops", "Structured interviews"]
+    weighted_items = [item for item in service.job_repository.get_job_for_edit(db_session, created.job_id).rubric_items if item.criterion_type == "weighted"]
+    assert len(weighted_items) == 1
+    assert weighted_items[0].weight_input == 99
+    assert weighted_items[0].weight_normalized == 1.0
 
 
 def test_finalize_rejects_zero_weighted_total(db_session) -> None:

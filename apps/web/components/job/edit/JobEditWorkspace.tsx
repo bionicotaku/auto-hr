@@ -48,7 +48,10 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
   const finalizeMutation = useJobFinalizeMutation(jobId);
   const deleteDraftMutation = useDeleteJobDraftMutation(jobId);
 
+  const [title, setTitle] = useState("");
+  const [summary, setSummary] = useState("");
   const [descriptionText, setDescriptionText] = useState("");
+  const [structuredInfoJson, setStructuredInfoJson] = useState<Record<string, unknown>>({});
   const [responsibilitiesText, setResponsibilitiesText] = useState("");
   const [skillsText, setSkillsText] = useState("");
   const [rubricItems, setRubricItems] = useState<JobRubricDraftItemDto[]>([]);
@@ -63,7 +66,10 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
     }
 
     initializedJobIdRef.current = editQuery.data.id;
+    setTitle(editQuery.data.title);
+    setSummary(editQuery.data.summary);
     setDescriptionText(editQuery.data.description_text);
+    setStructuredInfoJson(editQuery.data.structured_info_json);
     setResponsibilitiesText(joinLines(editQuery.data.responsibilities));
     setSkillsText(joinLines(editQuery.data.skills));
     setRubricItems(editQuery.data.rubric_items);
@@ -94,16 +100,45 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
   const headerActions = useMemo(
     () => (
       <>
-        <span className="rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700 ring-1 ring-amber-200">
-          草稿
+        <span
+          className={
+            editQuery.data?.lifecycle_status === "active"
+              ? "rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700 ring-1 ring-emerald-200"
+              : "rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700 ring-1 ring-amber-200"
+          }
+        >
+          {editQuery.data?.lifecycle_status === "active" ? "已生效" : "草稿"}
         </span>
         <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600 ring-1 ring-slate-200">
           编号 {jobId}
         </span>
       </>
     ),
-    [jobId],
+    [editQuery.data?.lifecycle_status, jobId],
   );
+
+  const initialEditSnapshot = useMemo(() => {
+    if (!editQuery.data) {
+      return null;
+    }
+
+    return JSON.stringify({
+      title: editQuery.data.title,
+      summary: editQuery.data.summary,
+      description_text: editQuery.data.description_text,
+      structured_info_json: mergeStructuredInfoFields(editQuery.data.structured_info_json, {
+        responsibilities: editQuery.data.responsibilities,
+        skills: editQuery.data.skills,
+      }),
+      rubric_items: editQuery.data.rubric_items.map((item) => ({
+        sort_order: item.sort_order,
+        name: item.name,
+        description: item.description,
+        criterion_type: item.criterion_type,
+        weight_input: item.weight_input,
+      })),
+    });
+  }, [editQuery.data]);
 
   function buildRecentMessages() {
     return messages.slice(-5);
@@ -137,6 +172,25 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
         return { ...item, [field]: value };
       }),
     );
+  }
+
+  function buildCurrentEditSnapshot() {
+    return JSON.stringify({
+      title,
+      summary,
+      description_text: descriptionText,
+      structured_info_json: mergeStructuredInfoFields(structuredInfoJson, {
+        responsibilities: parseLines(responsibilitiesText),
+        skills: parseLines(skillsText),
+      }),
+      rubric_items: rubricItems.map((item) => ({
+        sort_order: item.sort_order,
+        name: item.name,
+        description: item.description,
+        criterion_type: item.criterion_type,
+        weight_input: item.weight_input,
+      })),
+    });
   }
 
   async function handleChatSubmit() {
@@ -184,7 +238,10 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
         recent_messages: buildRecentMessages(),
         user_input: trimmedInput,
       });
+      setTitle(response.title);
+      setSummary(response.summary);
       setDescriptionText(response.description_text);
+      setStructuredInfoJson(response.structured_info_json);
       setResponsibilitiesText(joinLines(response.responsibilities));
       setSkillsText(joinLines(response.skills));
       setRubricItems(response.rubric_items);
@@ -202,13 +259,21 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
   async function handleFinalize() {
     try {
       setPanelError(null);
+      if (
+        editQuery.data?.lifecycle_status === "active" &&
+        initialEditSnapshot !== null &&
+        buildCurrentEditSnapshot() === initialEditSnapshot
+      ) {
+        router.push(`/jobs/${jobId}`);
+        return;
+      }
       await finalizeMutation.mutateAsync({
         description_text: descriptionText,
         responsibilities: parseLines(responsibilitiesText),
         skills: parseLines(skillsText),
         rubric_items: rubricItems,
       });
-      router.push("/jobs");
+      router.push(editQuery.data?.lifecycle_status === "active" ? `/jobs/${jobId}` : "/jobs");
     } catch (error) {
       setPanelError(getJobApiErrorMessage(error));
     }
@@ -217,6 +282,10 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
   async function handleCancel() {
     try {
       setPanelError(null);
+      if (editQuery.data?.lifecycle_status === "active") {
+        router.push(`/jobs/${jobId}`);
+        return;
+      }
       await deleteDraftMutation.mutateAsync();
       router.push("/jobs");
     } catch (error) {
@@ -233,15 +302,15 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
       <Card className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-2">
           <p className="text-sm font-semibold text-slate-900">
-            {editQuery.data?.title ?? "岗位草稿"}
+            {title || editQuery.data?.title || "岗位草稿"}
           </p>
           <p className="text-sm leading-6 text-slate-600">
-            {editQuery.data?.summary ?? "确认描述与评估规范后，再完成当前岗位。"}
+            {summary || editQuery.data?.summary || "确认描述与评估规范后，再完成当前岗位。"}
           </p>
         </div>
-        {editQuery.data?.structured_info_json ? (
+        {Object.keys(structuredInfoJson).length > 0 || editQuery.data?.structured_info_json ? (
           <div className="text-sm leading-6 text-slate-600">
-            <span>{String(editQuery.data.structured_info_json.location ?? "地点待补充")}</span>
+            <span>{String((structuredInfoJson.location ?? editQuery.data?.structured_info_json.location) ?? "地点待补充")}</span>
           </div>
         ) : null}
       </Card>
@@ -250,7 +319,7 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
         <Card className="flex min-h-[240px] items-center justify-center">
           <div className="inline-flex items-center gap-2 text-sm text-slate-600">
             <Spinner className="h-4 w-4 border-slate-300 border-t-slate-800" />
-            正在加载岗位草稿
+            正在加载岗位信息
           </div>
         </Card>
       ) : editQuery.isError ? (
@@ -295,7 +364,9 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
 
           <JobEditActionBar
             isFinalizePending={finalizeMutation.isPending}
-            isCancelPending={deleteDraftMutation.isPending}
+            isCancelPending={
+              editQuery.data?.lifecycle_status === "draft" && deleteDraftMutation.isPending
+            }
             onCancel={handleCancel}
             onFinalize={handleFinalize}
           />
@@ -307,4 +378,18 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
 
 function joinLines(items: string[]) {
   return items.join("\n");
+}
+
+function mergeStructuredInfoFields(
+  structuredInfoJson: Record<string, unknown>,
+  fields: {
+    responsibilities: string[];
+    skills: string[];
+  },
+) {
+  return {
+    ...structuredInfoJson,
+    responsibilities: fields.responsibilities,
+    skills: fields.skills,
+  };
 }

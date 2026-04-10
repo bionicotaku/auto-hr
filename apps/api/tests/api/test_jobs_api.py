@@ -54,9 +54,18 @@ class StubChatWorkflow:
 class StubAgentEditWorkflow:
     def run(self, **_kwargs):
         return JobAgentEditResponseSchema(
+            title="Updated AI Recruiting Lead",
+            summary="Own the recruiting engine with stronger quality controls.",
             description_text="Updated JD body",
-            responsibilities=["Own funnel", "Publish scorecards"],
-            skills=["Hiring ops", "Stakeholder communication"],
+            structured_info_json={
+                "department": "Talent",
+                "location": "Hybrid",
+                "employment_type": "Full-time",
+                "seniority_level": "Lead",
+                "responsibilities": ["Own funnel", "Publish scorecards"],
+                "requirements": ["Experience"],
+                "skills": ["Hiring ops", "Stakeholder communication"],
+            },
             rubric_items=StubWorkflow()._draft().rubric_items,
         )
 
@@ -277,7 +286,10 @@ def test_agent_edit_endpoint_returns_generated_content(client, monkeypatch) -> N
     )
 
     assert response.status_code == 200
+    assert response.json()["title"] == "Updated AI Recruiting Lead"
+    assert response.json()["summary"] == "Own the recruiting engine with stronger quality controls."
     assert response.json()["description_text"] == "Updated JD body"
+    assert response.json()["structured_info_json"]["location"] == "Hybrid"
     assert response.json()["responsibilities"] == ["Own funnel", "Publish scorecards"]
     assert response.json()["skills"] == ["Hiring ops", "Stakeholder communication"]
     assert len(response.json()["rubric_items"]) == 1

@@ -12,7 +12,10 @@ class JobDefinitionAgentEditWorkflow:
     def run(
         self,
         *,
+        title: str,
+        summary: str,
         description_text: str,
+        structured_info_json: dict,
         responsibilities: list[str],
         skills: list[str],
         rubric_items: list[dict],
@@ -20,7 +23,10 @@ class JobDefinitionAgentEditWorkflow:
         user_input: str,
     ) -> JobAgentEditResponseSchema:
         prompt = build_job_agent_edit_prompt(
+            title=title,
+            summary=summary,
             description_text=description_text,
+            structured_info_json=structured_info_json,
             responsibilities=responsibilities,
             skills=skills,
             rubric_items=rubric_items,

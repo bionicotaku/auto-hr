@@ -97,7 +97,10 @@ export type JobChatResponseDto = {
 export type JobGeneratedContentRequestDto = JobChatRequestDto;
 
 export type JobGeneratedContentResponseDto = {
+  title: string;
+  summary: string;
   description_text: string;
+  structured_info_json: Record<string, unknown>;
   responsibilities: string[];
   skills: string[];
   rubric_items: JobRubricDraftItemDto[];

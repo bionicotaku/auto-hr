@@ -106,7 +106,7 @@ class JobService:
                 raise NotFoundError(f"Draft job {job_id} not found.")
 
     def chat_on_draft(self, job_id: str, payload: JobChatRequest) -> JobChatResponse:
-        self._get_draft_job(job_id)
+        self._get_editable_job(job_id)
         if self.chat_workflow is None:
             raise DomainValidationError("Job chat workflow is not configured.")
 
@@ -124,13 +124,20 @@ class JobService:
         return JobChatResponse(reply_text=response.reply_text)
 
     def agent_edit_draft(self, job_id: str, payload: JobAgentEditRequest) -> JobGeneratedContentResponse:
-        self._get_draft_job(job_id)
+        job = self._get_editable_job(job_id)
         if self.agent_edit_workflow is None:
             raise DomainValidationError("Job agent edit workflow is not configured.")
 
         try:
             response = self.agent_edit_workflow.run(
+                title=job.title,
+                summary=job.summary,
                 description_text=payload.description_text,
+                structured_info_json=self._merge_structured_info_fields(
+                    job.structured_info_json,
+                    responsibilities=payload.responsibilities,
+                    skills=payload.skills,
+                ),
                 responsibilities=payload.responsibilities,
                 skills=payload.skills,
                 rubric_items=self._coerce_edit_rubric_items(payload.rubric_items),
@@ -142,7 +149,7 @@ class JobService:
         return self._to_generated_content_response(response)
 
     def finalize_draft(self, job_id: str, payload: JobFinalizeRequest) -> JobFinalizeResponse:
-        job = self._get_draft_job(job_id)
+        job = self._get_editable_job(job_id)
         if self.finalize_workflow is None:
             raise DomainValidationError("Job finalize workflow is not configured.")
 
@@ -232,13 +239,16 @@ class JobService:
             raise DomainValidationError("Failed to create job draft.") from exc
 
     def _get_draft_job(self, job_id: str) -> Job:
+        job = self._get_editable_job(job_id)
+        if job.lifecycle_status != "draft":
+            raise ConflictError(f"Job {job_id} is not a draft.")
+        return job
+
+    def _get_editable_job(self, job_id: str) -> Job:
         try:
             job = self.job_repository.get_job_for_edit(self.session, job_id)
         except LookupError as exc:
             raise NotFoundError(f"Job {job_id} not found.") from exc
-
-        if job.lifecycle_status != "draft":
-            raise ConflictError(f"Job {job_id} is not editable.")
         return job
 
     def _to_job_edit_response(self, job: Job) -> JobEditResponse:
@@ -275,10 +285,14 @@ class JobService:
         self, response: JobAgentEditResponseSchema
     ) -> JobGeneratedContentResponse:
         normalized_items = self._normalize_generated_rubric_items(response.rubric_items)
+        structured_info_json = response.structured_info_json.model_dump(mode="json")
         return JobGeneratedContentResponse(
+            title=response.title,
+            summary=response.summary,
             description_text=response.description_text,
-            responsibilities=response.responsibilities,
-            skills=response.skills,
+            structured_info_json=structured_info_json,
+            responsibilities=self._get_structured_string_list(structured_info_json, "responsibilities"),
+            skills=self._get_structured_string_list(structured_info_json, "skills"),
             rubric_items=[self._to_draft_rubric_item_response(item) for item in normalized_items],
         )
 
@@ -317,7 +331,10 @@ class JobService:
     def _coerce_edit_rubric_items(self, rubric_items) -> list[dict[str, object]]:
         coerced_items: list[dict[str, object]] = []
         for item in rubric_items:
-            criterion_type = self._criterion_type_from_weight(item.weight_input)
+            criterion_type = self._criterion_type_from_edit_item(
+                item.criterion_type,
+                item.weight_input,
+            )
             coerced_items.append(
                 {
                     "sort_order": item.sort_order,
@@ -335,6 +352,21 @@ class JobService:
         if 0 < weight_input < 100:
             return "weighted"
         raise DomainValidationError("weight_input must be between 1 and 100, and 100 represents a hard requirement.")
+
+    def _criterion_type_from_edit_item(self, criterion_type: str, weight_input: float) -> str:
+        if criterion_type == "hard_requirement":
+            if weight_input != 100:
+                raise DomainValidationError(
+                    "Hard requirement items must use weight_input 100."
+                )
+            return "hard_requirement"
+
+        if criterion_type == "weighted":
+            if 0 < weight_input <= 100:
+                return "weighted"
+            raise DomainValidationError("Weighted rubric items must use weight_input between 1 and 100.")
+
+        raise DomainValidationError("Invalid rubric item criterion_type.")
 
     def _merge_structured_info_fields(
         self,
@@ -394,7 +426,10 @@ class JobService:
                         "sort_order": item.sort_order,
                         "name": item.name,
                         "description": item.description,
-                        "criterion_type": self._criterion_type_from_weight(item.weight_input),
+                        "criterion_type": self._criterion_type_from_edit_item(
+                            item.criterion_type,
+                            item.weight_input,
+                        ),
                         "weight_input": item.weight_input,
                         "weight_normalized": None,
                         **enrichment,
@@ -414,6 +449,11 @@ class JobService:
         ]
 
         if weighted_items:
+            if len(weighted_items) == 1:
+                weighted_items[0].weight_input = 99.0
+                weighted_items[0].weight_normalized = 1.0
+                return rubric_items
+
             total_weight = sum(item.weight_input for item in weighted_items)
             if total_weight <= 0:
                 raise DomainValidationError("Weighted rubric items must have a positive total weight.")

@@ -153,7 +153,10 @@ class JobChatResponse(BaseModel):
 
 
 class JobGeneratedContentResponse(BaseModel):
+    title: str
+    summary: str
     description_text: str
+    structured_info_json: dict[str, Any]
     responsibilities: list[str]
     skills: list[str]
     rubric_items: list[JobRubricDraftItemResponse]

@@ -66,9 +66,18 @@ def test_chat_workflow_returns_valid_schema() -> None:
 def test_agent_edit_workflow_rejects_invalid_schema() -> None:
     client = FakeClient(
         {
+            "title": "Updated Recruiter",
+            "summary": "Updated hiring owner summary.",
             "description_text": "New JD",
-            "responsibilities": ["Own funnel"],
-            "skills": ["Communication"],
+            "structured_info_json": {
+                "department": "Talent",
+                "location": "Remote",
+                "employment_type": "Full-time",
+                "seniority_level": "Lead",
+                "responsibilities": ["Own funnel"],
+                "requirements": ["Recruiting depth"],
+                "skills": ["Communication"],
+            },
             "rubric_items": [
                 {
                     "sort_order": 1,
@@ -84,7 +93,18 @@ def test_agent_edit_workflow_rejects_invalid_schema() -> None:
 
     with pytest.raises(ValueError):
         workflow.run(
+            title="Current title",
+            summary="Current summary",
             description_text="Current JD",
+            structured_info_json={
+                "department": "Talent",
+                "location": "Remote",
+                "employment_type": "Full-time",
+                "seniority_level": "Lead",
+                "responsibilities": ["Run kickoff"],
+                "requirements": ["Recruiting depth"],
+                "skills": ["Recruiting ops"],
+            },
             responsibilities=["Run kickoff"],
             skills=["Recruiting ops"],
             rubric_items=valid_rubric_items(),

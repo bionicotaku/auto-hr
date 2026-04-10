@@ -91,7 +91,10 @@ def build_job_chat_prompt(
 
 def build_job_agent_edit_prompt(
     *,
+    title: str,
+    summary: str,
     description_text: str,
+    structured_info_json: dict,
     responsibilities: list[str],
     skills: list[str],
     rubric_items: list[dict],
@@ -100,25 +103,35 @@ def build_job_agent_edit_prompt(
 ) -> str:
     serialized_rubric = json.dumps(rubric_items, ensure_ascii=False, indent=2)
     serialized_messages = json.dumps(recent_messages, ensure_ascii=False, indent=2)
+    serialized_structured_info = json.dumps(structured_info_json, ensure_ascii=False, indent=2)
     serialized_responsibilities = json.dumps(responsibilities, ensure_ascii=False, indent=2)
     serialized_skills = json.dumps(skills, ensure_ascii=False, indent=2)
     return f"""
 你是招聘系统中的岗位编辑助手。
 
-请基于当前岗位定义和用户要求，直接输出更新后的职位描述、responsibilities、skills 与 rubric 严格 JSON。
+请基于当前岗位定义和用户要求，直接输出更新后的完整岗位定义严格 JSON。
 
 要求：
 1. 输出必须符合给定 JSON Schema。
-2. 返回新的 `description_text`、完整的 `responsibilities`、完整的 `skills` 和完整的 `rubric_items`。
-3. `responsibilities` 与 `skills` 必须是字符串数组，每个元素都是一个清晰条目。
+2. 返回新的 `title`、`summary`、`structured_info_json`、`description_text` 和完整的 `rubric_items`。
+3. `structured_info_json` 必须包含当前岗位相关的结构化信息，尤其要正确输出 `responsibilities`、`requirements`、`skills`。
 4. `rubric_items` 必须保留完整的名称、说明、criterion_type 和权重。
-4. 不要生成 scoring_standard_items、agent_prompt_text、evidence_guidance_text。
+5. 不要生成 scoring_standard_items、agent_prompt_text、evidence_guidance_text。
 5. `weight_input=100` 表示必须满足的硬要求；`1-99` 表示普通加权项。
 6. 不要生成 `weight_normalized`，后端会在接收后统一计算。
 7. 不要输出额外说明，不要输出 markdown。
 
+当前标题：
+{title}
+
+当前摘要：
+{summary}
+
 当前职位描述：
 {description_text}
+
+当前 structured_info_json：
+{serialized_structured_info}
 
 当前 responsibilities：
 {serialized_responsibilities}

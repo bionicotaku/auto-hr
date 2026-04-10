@@ -19,7 +19,7 @@ export function JobEditActionBar({
     <Card className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold tracking-tight text-slate-950">操作</h2>
-        <p className="text-sm leading-6 text-slate-600">检查内容后，可取消当前草稿或完成当前岗位。</p>
+        <p className="text-sm leading-6 text-slate-600">点击保存会使用 AI 分析后再入库。</p>
       </div>
       <div className="flex flex-wrap gap-3">
         <Button variant="ghost" onClick={onCancel} disabled={isFinalizePending || isCancelPending}>
@@ -36,10 +36,10 @@ export function JobEditActionBar({
           {isFinalizePending ? (
             <span className="inline-flex items-center gap-2">
               <Spinner className="h-4 w-4 border-white/30 border-t-white" />
-              完成中
+              AI 分析中
             </span>
           ) : (
-            "完成"
+            "保存"
           )}
         </Button>
       </div>

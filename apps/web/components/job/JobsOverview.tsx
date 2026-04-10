@@ -79,9 +79,6 @@ export function JobsOverview() {
               <Button href="/jobs/new" size="lg">
                 新建岗位
               </Button>
-              <Button href="/jobs/new/from-description" variant="secondary">
-                导入职位描述
-              </Button>
             </div>
           </Card>
 

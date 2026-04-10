@@ -63,6 +63,14 @@ function makeEditPayload() {
   };
 }
 
+function makeActiveEditPayload() {
+  return {
+    ...makeEditPayload(),
+    lifecycle_status: "active" as const,
+    finalized_at: "2026-04-10T00:00:00Z",
+  };
+}
+
 describe("Job edit workspace", () => {
   beforeEach(() => {
     pushMock.mockReset();
@@ -109,7 +117,14 @@ describe("Job edit workspace", () => {
       .mockResolvedValueOnce(mockJsonResponse(makeEditPayload()))
       .mockResolvedValueOnce(
         mockJsonResponse({
+          title: "Updated AI Recruiter",
+          summary: "Own the recruiting funnel with a tighter hiring bar.",
           description_text: "Agent updated JD",
+          structured_info_json: {
+            location: "Hybrid",
+            responsibilities: ["Run kickoff", "Manage hiring cadence"],
+            skills: ["Hiring strategy", "Funnel ops"],
+          },
           rubric_items: [
             {
               sort_order: 1,
@@ -134,6 +149,9 @@ describe("Job edit workspace", () => {
 
     await screen.findByDisplayValue("Agent updated JD");
     expect(screen.getByDisplayValue("Updated Execution")).toBeInTheDocument();
+    expect(screen.getByText("Updated AI Recruiter")).toBeInTheDocument();
+    expect(screen.getByText("Own the recruiting funnel with a tighter hiring bar.")).toBeInTheDocument();
+    expect(screen.getByText("Hybrid")).toBeInTheDocument();
     expect(screen.getByLabelText("Responsibilities 编辑区")).toHaveValue("Run kickoff\nManage hiring cadence");
     expect(screen.getByLabelText("Skills 编辑区")).toHaveValue("Hiring strategy\nFunnel ops");
   });
@@ -147,7 +165,7 @@ describe("Job edit workspace", () => {
     renderWithProviders(<JobEditWorkspace jobId="job-123" />);
 
     await screen.findByDisplayValue("Initial JD body");
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -157,6 +175,31 @@ describe("Job edit workspace", () => {
         }),
       );
       expect(pushMock).toHaveBeenCalledWith("/jobs");
+    });
+  });
+
+  it("returns to the job detail page after saving an active job with changes", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(mockJsonResponse(makeActiveEditPayload()))
+      .mockResolvedValueOnce(mockJsonResponse({ job_id: "job-123", lifecycle_status: "active" }));
+
+    renderWithProviders(<JobEditWorkspace jobId="job-123" />);
+
+    const description = await screen.findByLabelText("职位描述编辑区");
+    fireEvent.change(description, {
+      target: { value: "Updated active JD" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/jobs/job-123/finalize"),
+        expect.objectContaining({
+          method: "POST",
+        }),
+      );
+      expect(pushMock).toHaveBeenCalledWith("/jobs/job-123");
     });
   });
 
@@ -176,7 +219,7 @@ describe("Job edit workspace", () => {
     fireEvent.change(responsibilities, {
       target: { value: "Own funnel\nPartner hiring team" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     expect(await screen.findByText("最终定稿失败")).toBeInTheDocument();
     expect(description).toHaveValue("Locally edited JD");
@@ -203,6 +246,36 @@ describe("Job edit workspace", () => {
         }),
       );
       expect(pushMock).toHaveBeenCalledWith("/jobs");
+    });
+  });
+
+  it("returns to the job detail page on cancel for active jobs", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(mockJsonResponse(makeActiveEditPayload()));
+
+    renderWithProviders(<JobEditWorkspace jobId="job-123" />);
+
+    await screen.findByDisplayValue("Initial JD body");
+    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(pushMock).toHaveBeenCalledWith("/jobs/job-123");
+    });
+  });
+
+  it("returns to the job detail page without saving when active job has no changes", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(mockJsonResponse(makeActiveEditPayload()));
+
+    renderWithProviders(<JobEditWorkspace jobId="job-123" />);
+
+    await screen.findByDisplayValue("Initial JD body");
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(pushMock).toHaveBeenCalledWith("/jobs/job-123");
     });
   });
 });
