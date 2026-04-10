@@ -73,6 +73,8 @@ export type JobEditResponseDto = {
   original_form_input_json: Record<string, unknown> | null;
   editor_history_summary: string | null;
   editor_recent_messages_json: Array<Record<string, unknown>>;
+  responsibilities: string[];
+  skills: string[];
   created_at: string;
   updated_at: string;
   finalized_at: string | null;
@@ -81,6 +83,8 @@ export type JobEditResponseDto = {
 
 export type JobChatRequestDto = {
   description_text: string;
+  responsibilities: string[];
+  skills: string[];
   rubric_items: JobRubricDraftItemDto[];
   recent_messages: JobEditorMessageDto[];
   user_input: string;
@@ -94,16 +98,15 @@ export type JobGeneratedContentRequestDto = JobChatRequestDto;
 
 export type JobGeneratedContentResponseDto = {
   description_text: string;
+  responsibilities: string[];
+  skills: string[];
   rubric_items: JobRubricDraftItemDto[];
-};
-
-export type JobRegenerateRequestDto = {
-  recent_messages: JobEditorMessageDto[];
-  history_summary: string | null;
 };
 
 export type JobFinalizeRequestDto = {
   description_text: string;
+  responsibilities: string[];
+  skills: string[];
   rubric_items: JobRubricDraftItemDto[];
 };
 

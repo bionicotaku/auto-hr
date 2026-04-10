@@ -20,7 +20,6 @@ from app.schemas.jobs import (
     JobFinalizeResponse,
     JobGeneratedContentResponse,
     JobListResponse,
-    JobRegenerateRequest,
 )
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -139,17 +138,6 @@ def agent_edit_job_draft(
 ) -> JobGeneratedContentResponse:
     service = service_deps.get_job_service(session, settings)
     return service.agent_edit_draft(job_id, payload)
-
-
-@router.post("/{job_id}/regenerate", response_model=JobGeneratedContentResponse)
-def regenerate_job_draft(
-    job_id: str,
-    payload: JobRegenerateRequest,
-    session: DbSession,
-    settings: AppSettings,
-) -> JobGeneratedContentResponse:
-    service = service_deps.get_job_service(session, settings)
-    return service.regenerate_draft(job_id, payload)
 
 
 @router.post("/{job_id}/finalize", response_model=JobFinalizeResponse)

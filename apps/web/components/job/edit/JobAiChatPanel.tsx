@@ -35,7 +35,7 @@ export function JobAiChatPanel({
     <Card className="space-y-4">
       <div className="space-y-2">
         <h2 className="text-lg font-semibold tracking-tight text-slate-950">修改要求</h2>
-        <p className="text-sm leading-6 text-slate-600">获取建议，或直接让系统生成一版新的岗位定义。</p>
+        <p className="text-sm leading-6 text-slate-600">获取建议，或直接让系统生成一版新的岗位定义并覆盖当前内容。</p>
       </div>
 
       <div className="min-h-[220px] space-y-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
@@ -82,10 +82,10 @@ export function JobAiChatPanel({
           {isAgentPending ? (
             <span className="inline-flex items-center gap-2">
               <Spinner className="h-4 w-4 border-slate-300 border-t-slate-800" />
-              应用修改中
+              生成新版中
             </span>
           ) : (
-            "应用修改"
+            "生成新版"
           )}
         </Button>
       </div>

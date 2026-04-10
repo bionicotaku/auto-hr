@@ -55,14 +55,8 @@ class StubAgentEditWorkflow:
     def run(self, **_kwargs):
         return JobAgentEditResponseSchema(
             description_text="Updated JD body",
-            rubric_items=StubWorkflow()._draft().rubric_items,
-        )
-
-
-class StubRegenerateWorkflow:
-    def run(self, **_kwargs):
-        return JobAgentEditResponseSchema(
-            description_text="Regenerated JD body",
+            responsibilities=["Own funnel", "Publish scorecards"],
+            skills=["Hiring ops", "Stakeholder communication"],
             rubric_items=StubWorkflow()._draft().rubric_items,
         )
 
@@ -157,7 +151,6 @@ def override_job_service(session, _settings):
         StubWorkflow(),
         chat_workflow=StubChatWorkflow(),
         agent_edit_workflow=StubAgentEditWorkflow(),
-        regenerate_workflow=StubRegenerateWorkflow(),
         finalize_workflow=StubFinalizeWorkflow(),
     )
 
@@ -234,6 +227,8 @@ def test_chat_endpoint_returns_reply_text(client, monkeypatch) -> None:
         f"/api/jobs/{job_id}/chat",
         json={
             "description_text": "Current local description",
+            "responsibilities": ["Run kickoff"],
+            "skills": ["Recruiting ops"],
             "rubric_items": [
                 {
                     "sort_order": 1,
@@ -265,6 +260,8 @@ def test_agent_edit_endpoint_returns_generated_content(client, monkeypatch) -> N
         f"/api/jobs/{job_id}/agent-edit",
         json={
             "description_text": "Current local description",
+            "responsibilities": ["Run kickoff"],
+            "skills": ["Recruiting ops"],
             "rubric_items": [
                 {
                     "sort_order": 1,
@@ -281,30 +278,9 @@ def test_agent_edit_endpoint_returns_generated_content(client, monkeypatch) -> N
 
     assert response.status_code == 200
     assert response.json()["description_text"] == "Updated JD body"
+    assert response.json()["responsibilities"] == ["Own funnel", "Publish scorecards"]
+    assert response.json()["skills"] == ["Hiring ops", "Stakeholder communication"]
     assert len(response.json()["rubric_items"]) == 1
-
-
-def test_regenerate_endpoint_rejects_extra_fields(client, monkeypatch) -> None:
-    monkeypatch.setattr(service_deps, "get_job_service", override_job_service)
-
-    create_response = client.post(
-        "/api/jobs/from-description",
-        json={"description_text": "A long enough original job description for testing."},
-    )
-    job_id = create_response.json()["job_id"]
-
-    response = client.post(
-        f"/api/jobs/{job_id}/regenerate",
-        json={
-            "recent_messages": [],
-            "history_summary": None,
-            "description_text": "should not be accepted",
-        },
-    )
-
-    assert response.status_code == 422
-    assert response.json()["error"]["code"] == "invalid_request"
-    assert "description_text" in response.json()["error"]["message"]
 
 
 def test_finalize_endpoint_returns_active_job_id(client, monkeypatch) -> None:
@@ -320,6 +296,8 @@ def test_finalize_endpoint_returns_active_job_id(client, monkeypatch) -> None:
         f"/api/jobs/{job_id}/finalize",
         json={
             "description_text": "Current finalized description",
+            "responsibilities": ["Run kickoff"],
+            "skills": ["Recruiting ops"],
             "rubric_items": [
                 {
                     "sort_order": 1,

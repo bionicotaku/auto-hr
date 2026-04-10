@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from app.core.exceptions import ConflictError, DomainValidationError
 from app.repositories.job_repository import JobRepository
@@ -14,7 +15,6 @@ from app.schemas.jobs import (
     JobAgentEditRequest,
     JobChatRequest,
     JobFinalizeRequest,
-    JobRegenerateRequest,
 )
 from app.services.job_service import JobService
 
@@ -52,18 +52,8 @@ class StubAgentEditWorkflow:
         self.calls.append(kwargs)
         return JobAgentEditResponseSchema(
             description_text="New JD body",
-            rubric_items=make_job_draft().rubric_items,
-        )
-
-
-class StubRegenerateWorkflow:
-    def __init__(self):
-        self.calls: list[dict] = []
-
-    def run(self, **kwargs):
-        self.calls.append(kwargs)
-        return JobAgentEditResponseSchema(
-            description_text="Regenerated JD body",
+            responsibilities=["Own funnel", "Coordinate interview loop"],
+            skills=["Hiring ops", "Stakeholder management"],
             rubric_items=make_job_draft().rubric_items,
         )
 
@@ -204,6 +194,8 @@ def test_chat_on_draft_does_not_persist_editor_changes(db_session) -> None:
         created.job_id,
         JobChatRequest(
             description_text="Locally edited description",
+            responsibilities=["Run kickoff"],
+            skills=["Recruiting ops"],
             rubric_items=service.get_job_edit_payload(created.job_id).rubric_items,
             recent_messages=[{"role": "user", "content": "先给建议"}],
             user_input="请给建议",
@@ -214,6 +206,8 @@ def test_chat_on_draft_does_not_persist_editor_changes(db_session) -> None:
     assert response.reply_text == "建议保持职责结构清晰。"
     assert loaded.description_text == "JD body"
     assert chat_workflow.calls[0]["description_text"] == "Locally edited description"
+    assert chat_workflow.calls[0]["responsibilities"] == ["Run kickoff"]
+    assert chat_workflow.calls[0]["skills"] == ["Recruiting ops"]
 
 
 def test_agent_edit_on_draft_returns_generated_content_without_writing(db_session) -> None:
@@ -232,6 +226,8 @@ def test_agent_edit_on_draft_returns_generated_content_without_writing(db_sessio
         created.job_id,
         JobAgentEditRequest(
             description_text="Locally edited description",
+            responsibilities=["Run kickoff"],
+            skills=["Recruiting ops"],
             rubric_items=service.get_job_edit_payload(created.job_id).rubric_items,
             recent_messages=[],
             user_input="直接应用新的版本",
@@ -240,34 +236,11 @@ def test_agent_edit_on_draft_returns_generated_content_without_writing(db_sessio
 
     loaded = service.get_job_edit_payload(created.job_id)
     assert response.description_text == "New JD body"
+    assert response.responsibilities == ["Own funnel", "Coordinate interview loop"]
+    assert response.skills == ["Hiring ops", "Stakeholder management"]
     assert "weight_normalized" not in response.rubric_items[0].model_dump()
     assert loaded.description_text == "JD body"
     assert agent_workflow.calls[0]["user_input"] == "直接应用新的版本"
-
-
-def test_regenerate_uses_original_input_not_current_description(db_session) -> None:
-    regenerate_workflow = StubRegenerateWorkflow()
-    service = JobService(
-        db_session,
-        JobRepository(),
-        StubWorkflow(result=make_job_draft()),
-        regenerate_workflow=regenerate_workflow,
-    )
-    created = service.create_draft_from_description(
-        CreateJobFromDescriptionRequest(description_text="Original raw description input.")
-    )
-
-    response = service.regenerate_draft(
-        created.job_id,
-        JobRegenerateRequest(
-            recent_messages=[{"role": "assistant", "content": "此前建议"}],
-            history_summary=None,
-        ),
-    )
-
-    assert response.description_text == "Regenerated JD body"
-    assert regenerate_workflow.calls[0]["original_description_input"] == "Original raw description input."
-    assert "description_text" not in regenerate_workflow.calls[0]
 
 
 def test_finalize_draft_updates_job_to_active_and_replaces_rubric(db_session) -> None:
@@ -287,6 +260,8 @@ def test_finalize_draft_updates_job_to_active_and_replaces_rubric(db_session) ->
         created.job_id,
         JobFinalizeRequest(
           description_text="Locally finalized description",
+          responsibilities=["Own funnel", "Partner hiring managers"],
+          skills=["Hiring ops", "Structured interviews"],
           rubric_items=loaded_before.rubric_items,
         ),
     )
@@ -297,6 +272,8 @@ def test_finalize_draft_updates_job_to_active_and_replaces_rubric(db_session) ->
     assert loaded_after.title == "Final Recruiting Lead"
     assert loaded_after.summary == "Lead the recruiting motion with clear quality standards."
     assert loaded_after.description_text == "Locally finalized description"
+    assert loaded_after.responsibilities == ["Own funnel", "Partner hiring managers"]
+    assert loaded_after.skills == ["Hiring ops", "Structured interviews"]
     assert loaded_after.finalized_at is not None
     assert len(loaded_after.rubric_items) == 2
     final_job = service.job_repository.get_job_for_edit(db_session, created.job_id)
@@ -324,6 +301,8 @@ def test_finalize_failure_does_not_override_draft(db_session) -> None:
             created.job_id,
             JobFinalizeRequest(
                 description_text="Locally finalized description",
+                responsibilities=["Own funnel"],
+                skills=["Hiring ops"],
                 rubric_items=loaded_before.rubric_items,
             ),
         )
@@ -350,6 +329,8 @@ def test_finalize_rejects_active_job(db_session) -> None:
         created.job_id,
         JobFinalizeRequest(
             description_text="Locally finalized description",
+            responsibilities=["Own funnel"],
+            skills=["Hiring ops"],
             rubric_items=draft_payload.rubric_items,
         ),
     )
@@ -359,6 +340,8 @@ def test_finalize_rejects_active_job(db_session) -> None:
             created.job_id,
             JobFinalizeRequest(
                 description_text="Second finalize attempt",
+                responsibilities=["Own funnel"],
+                skills=["Hiring ops"],
                 rubric_items=service.get_job_edit_payload(created.job_id).rubric_items,
             ),
         )
@@ -383,11 +366,10 @@ def test_finalize_rejects_zero_weighted_total(db_session) -> None:
         for item in draft_payload.rubric_items
     ]
 
-    with pytest.raises(DomainValidationError):
-        service.finalize_draft(
-            created.job_id,
-            JobFinalizeRequest(
-                description_text="Locally finalized description",
-                rubric_items=zero_weight_items,
-            ),
+    with pytest.raises(ValidationError):
+        JobFinalizeRequest(
+            description_text="Locally finalized description",
+            responsibilities=["Own funnel"],
+            skills=["Hiring ops"],
+            rubric_items=zero_weight_items,
         )

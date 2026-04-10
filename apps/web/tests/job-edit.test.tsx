@@ -42,6 +42,8 @@ function makeEditPayload() {
     structured_info_json: {
       location: "Remote",
     },
+    responsibilities: ["Publish role", "Coordinate interview loop"],
+    skills: ["Recruiting ops", "Stakeholder management"],
     original_description_input: "Raw input",
     original_form_input_json: null,
     editor_history_summary: null,
@@ -79,6 +81,8 @@ describe("Job edit workspace", () => {
 
     expect(await screen.findByDisplayValue("Initial JD body")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Execution")).toBeInTheDocument();
+    expect(screen.getByLabelText("Responsibilities 编辑区")).toHaveValue("Publish role\nCoordinate interview loop");
+    expect(screen.getByLabelText("Skills 编辑区")).toHaveValue("Recruiting ops\nStakeholder management");
   });
 
   it("keeps the editor content unchanged after chat", async () => {
@@ -115,6 +119,8 @@ describe("Job edit workspace", () => {
               weight_input: 80,
             },
           ],
+          responsibilities: ["Run kickoff", "Manage hiring cadence"],
+          skills: ["Hiring strategy", "Funnel ops"],
         }),
       );
 
@@ -124,40 +130,12 @@ describe("Job edit workspace", () => {
     fireEvent.change(screen.getByLabelText("修改要求输入框"), {
       target: { value: "直接修改" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "应用修改" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成新版" }));
 
     await screen.findByDisplayValue("Agent updated JD");
     expect(screen.getByDisplayValue("Updated Execution")).toBeInTheDocument();
-  });
-
-  it("applies regenerated content", async () => {
-    const fetchMock = vi.mocked(fetch);
-    fetchMock
-      .mockResolvedValueOnce(mockJsonResponse(makeEditPayload()))
-      .mockResolvedValueOnce(
-        mockJsonResponse({
-          description_text: "Regenerated JD",
-          rubric_items: [
-            {
-              sort_order: 1,
-              name: "Regenerated Execution",
-              description: "Regenerated description",
-              criterion_type: "weighted",
-              weight_input: 75,
-            },
-          ],
-        }),
-      );
-
-    renderWithProviders(<JobEditWorkspace jobId="job-123" />);
-
-    await screen.findByDisplayValue("Initial JD body");
-    fireEvent.click(screen.getByRole("button", { name: "重新生成" }));
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("Regenerated JD")).toBeInTheDocument();
-    });
-    expect(screen.getByText("已重新生成当前岗位定义。")).toBeInTheDocument();
+    expect(screen.getByLabelText("Responsibilities 编辑区")).toHaveValue("Run kickoff\nManage hiring cadence");
+    expect(screen.getByLabelText("Skills 编辑区")).toHaveValue("Hiring strategy\nFunnel ops");
   });
 
   it("finalizes the job and navigates back to jobs", async () => {
@@ -191,13 +169,18 @@ describe("Job edit workspace", () => {
     renderWithProviders(<JobEditWorkspace jobId="job-123" />);
 
     const description = await screen.findByLabelText("职位描述编辑区");
+    const responsibilities = screen.getByLabelText("Responsibilities 编辑区");
     fireEvent.change(description, {
       target: { value: "Locally edited JD" },
+    });
+    fireEvent.change(responsibilities, {
+      target: { value: "Own funnel\nPartner hiring team" },
     });
     fireEvent.click(screen.getByRole("button", { name: "完成" }));
 
     expect(await screen.findByText("最终定稿失败")).toBeInTheDocument();
     expect(description).toHaveValue("Locally edited JD");
+    expect(responsibilities).toHaveValue("Own funnel\nPartner hiring team");
     expect(pushMock).not.toHaveBeenCalled();
   });
 

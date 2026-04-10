@@ -35,14 +35,13 @@ export function JobsOverview() {
       ) : jobsQuery.data && jobsQuery.data.items.length > 0 ? (
         <div className="grid gap-5 lg:grid-cols-2">
           {jobsQuery.data.items.map((job) => {
-            const href = job.lifecycle_status === "draft" ? `/jobs/${job.job_id}/edit` : `/jobs/${job.job_id}`;
             return (
               <Card key={job.job_id} className="flex min-h-[240px] flex-col justify-between">
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                        {job.lifecycle_status === "draft" ? "草稿" : "已生效"}
+                        已生效
                       </span>
                       <span className="text-xs text-slate-500">
                         {new Date(job.updated_at).toLocaleDateString("zh-CN")}
@@ -57,7 +56,7 @@ export function JobsOverview() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-3 pt-5">
-                  <Button href={href}>进入岗位</Button>
+                  <Button href={`/jobs/${job.job_id}`}>进入岗位</Button>
                   <Button href={`/jobs/${job.job_id}/candidates/new`} variant="secondary">
                     添加候选人
                   </Button>

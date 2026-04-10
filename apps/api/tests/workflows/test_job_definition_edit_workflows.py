@@ -8,7 +8,6 @@ from app.schemas.ai.job_definition import (
 from app.workflows.job_definition.agent_edit import JobDefinitionAgentEditWorkflow
 from app.workflows.job_definition.chat import JobDefinitionChatWorkflow
 from app.workflows.job_definition.finalize import JobDefinitionFinalizeWorkflow
-from app.workflows.job_definition.regenerate import JobDefinitionRegenerateWorkflow
 
 
 class FakeClient:
@@ -53,6 +52,8 @@ def test_chat_workflow_returns_valid_schema() -> None:
 
     response = workflow.run(
         description_text="Current JD",
+        responsibilities=["Run kickoff"],
+        skills=["Recruiting ops"],
         rubric_items=valid_rubric_items(),
         recent_messages=[{"role": "user", "content": "请增强要求"}],
         user_input="把必须项单独列出来。",
@@ -66,6 +67,8 @@ def test_agent_edit_workflow_rejects_invalid_schema() -> None:
     client = FakeClient(
         {
             "description_text": "New JD",
+            "responsibilities": ["Own funnel"],
+            "skills": ["Communication"],
             "rubric_items": [
                 {
                     "sort_order": 1,
@@ -82,38 +85,12 @@ def test_agent_edit_workflow_rejects_invalid_schema() -> None:
     with pytest.raises(ValueError):
         workflow.run(
             description_text="Current JD",
+            responsibilities=["Run kickoff"],
+            skills=["Recruiting ops"],
             rubric_items=valid_rubric_items(),
             recent_messages=[],
             user_input="重写这段 JD。",
         )
-
-
-def test_regenerate_workflow_uses_original_inputs_only() -> None:
-    client = FakeClient(
-        {
-            "description_text": "Regenerated JD",
-            "rubric_items": valid_rubric_items(),
-        }
-    )
-    workflow = JobDefinitionRegenerateWorkflow(client)
-
-    response = workflow.run(
-        original_description_input="ORIGINAL_DESCRIPTION_SOURCE",
-        original_form_input_json={"job_title": "AI Recruiter"},
-        title="Recruiter",
-        summary="Summary",
-        structured_info_json={"department": "Talent"},
-        history_summary="Earlier discussion",
-        recent_messages=[{"role": "assistant", "content": "此前建议"}],
-    )
-
-    assert isinstance(response, JobAgentEditResponseSchema)
-    prompt = client.calls[0]["prompt"]
-    assert "ORIGINAL_DESCRIPTION_SOURCE" in prompt
-    assert "job_title" in prompt
-    assert "当前编辑区版本不会提供" in prompt
-    assert response.rubric_items[0].name == "Execution"
-
 
 def test_finalize_workflow_returns_valid_schema() -> None:
     client = FakeClient(
@@ -127,6 +104,8 @@ def test_finalize_workflow_returns_valid_schema() -> None:
 
     response = workflow.run(
         description_text="Current JD",
+        responsibilities=["Run kickoff"],
+        skills=["Recruiting ops"],
         rubric_items=valid_rubric_items(),
     )
 
@@ -137,4 +116,6 @@ def test_finalize_workflow_returns_valid_schema() -> None:
     assert response.rubric_items[0].agent_prompt_text == "Judge execution in real project work."
     prompt = client.calls[0]["prompt"]
     assert "Current JD" in prompt
+    assert "Run kickoff" in prompt
+    assert "Recruiting ops" in prompt
     assert "不要参考任何原始输入" in prompt

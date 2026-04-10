@@ -13,12 +13,16 @@ class JobDefinitionAgentEditWorkflow:
         self,
         *,
         description_text: str,
+        responsibilities: list[str],
+        skills: list[str],
         rubric_items: list[dict],
         recent_messages: list[dict],
         user_input: str,
     ) -> JobAgentEditResponseSchema:
         prompt = build_job_agent_edit_prompt(
             description_text=description_text,
+            responsibilities=responsibilities,
+            skills=skills,
             rubric_items=rubric_items,
             recent_messages=recent_messages,
             user_input=user_input,

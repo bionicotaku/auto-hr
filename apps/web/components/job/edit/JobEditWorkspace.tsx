@@ -14,7 +14,6 @@ import {
   useJobChatMutation,
   useJobEditQuery,
   useJobFinalizeMutation,
-  useJobRegenerateMutation,
 } from "@/lib/query/jobs";
 
 import { JobAiChatPanel } from "./JobAiChatPanel";
@@ -46,11 +45,12 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
   const editQuery = useJobEditQuery(jobId);
   const chatMutation = useJobChatMutation(jobId);
   const agentMutation = useJobAgentEditMutation(jobId);
-  const regenerateMutation = useJobRegenerateMutation(jobId);
   const finalizeMutation = useJobFinalizeMutation(jobId);
   const deleteDraftMutation = useDeleteJobDraftMutation(jobId);
 
   const [descriptionText, setDescriptionText] = useState("");
+  const [responsibilitiesText, setResponsibilitiesText] = useState("");
+  const [skillsText, setSkillsText] = useState("");
   const [rubricItems, setRubricItems] = useState<JobRubricDraftItemDto[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<JobEditorMessageDto[]>([]);
@@ -64,6 +64,8 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
 
     initializedJobIdRef.current = editQuery.data.id;
     setDescriptionText(editQuery.data.description_text);
+    setResponsibilitiesText(joinLines(editQuery.data.responsibilities));
+    setSkillsText(joinLines(editQuery.data.skills));
     setRubricItems(editQuery.data.rubric_items);
     setMessages(
       editQuery.data.editor_recent_messages_json.flatMap((message) => {
@@ -86,7 +88,6 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
   const isBusy =
     chatMutation.isPending ||
     agentMutation.isPending ||
-    regenerateMutation.isPending ||
     finalizeMutation.isPending ||
     deleteDraftMutation.isPending;
 
@@ -108,6 +109,13 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
     return messages.slice(-5);
   }
 
+  function parseLines(value: string) {
+    return value
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
   function updateRubricItem<K extends keyof JobRubricDraftItemDto>(
     index: number,
     field: K,
@@ -117,6 +125,14 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
       current.map((item, itemIndex) => {
         if (itemIndex !== index) {
           return item;
+        }
+        if (field === "weight_input") {
+          const weightInput = Number(value);
+          return {
+            ...item,
+            weight_input: weightInput,
+            criterion_type: weightInput === 100 ? "hard_requirement" : "weighted",
+          };
         }
         return { ...item, [field]: value };
       }),
@@ -134,6 +150,8 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
       setPanelError(null);
       const response = await chatMutation.mutateAsync({
         description_text: descriptionText,
+        responsibilities: parseLines(responsibilitiesText),
+        skills: parseLines(skillsText),
         rubric_items: rubricItems,
         recent_messages: buildRecentMessages(),
         user_input: trimmedInput,
@@ -160,33 +178,22 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
       setPanelError(null);
       const response = await agentMutation.mutateAsync({
         description_text: descriptionText,
+        responsibilities: parseLines(responsibilitiesText),
+        skills: parseLines(skillsText),
         rubric_items: rubricItems,
         recent_messages: buildRecentMessages(),
         user_input: trimmedInput,
       });
       setDescriptionText(response.description_text);
+      setResponsibilitiesText(joinLines(response.responsibilities));
+      setSkillsText(joinLines(response.skills));
       setRubricItems(response.rubric_items);
       setMessages((current) => [
         ...current,
         { role: "user", content: trimmedInput },
-        { role: "assistant", content: "已应用新的岗位定义。" },
+        { role: "assistant", content: "已生成新版岗位定义。" },
       ]);
       setChatInput("");
-    } catch (error) {
-      setPanelError(getJobApiErrorMessage(error));
-    }
-  }
-
-  async function handleRegenerate() {
-    try {
-      setPanelError(null);
-      const response = await regenerateMutation.mutateAsync({
-        recent_messages: buildRecentMessages(),
-        history_summary: null,
-      });
-      setDescriptionText(response.description_text);
-      setRubricItems(response.rubric_items);
-      setMessages((current) => [...current, { role: "system", content: "已重新生成当前岗位定义。" }]);
     } catch (error) {
       setPanelError(getJobApiErrorMessage(error));
     }
@@ -197,6 +204,8 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
       setPanelError(null);
       await finalizeMutation.mutateAsync({
         description_text: descriptionText,
+        responsibilities: parseLines(responsibilitiesText),
+        skills: parseLines(skillsText),
         rubric_items: rubricItems,
       });
       router.push("/jobs");
@@ -254,7 +263,11 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
           <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr_0.85fr]">
             <JobDescriptionEditor
               value={descriptionText}
+              responsibilitiesValue={responsibilitiesText}
+              skillsValue={skillsText}
               onChange={setDescriptionText}
+              onResponsibilitiesChange={setResponsibilitiesText}
+              onSkillsChange={setSkillsText}
               disabled={isBusy}
             />
             <JobRubricEditor
@@ -281,10 +294,8 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
           </div>
 
           <JobEditActionBar
-            isRegeneratePending={regenerateMutation.isPending}
             isFinalizePending={finalizeMutation.isPending}
             isCancelPending={deleteDraftMutation.isPending}
-            onRegenerate={handleRegenerate}
             onCancel={handleCancel}
             onFinalize={handleFinalize}
           />
@@ -292,4 +303,8 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
       )}
     </AppShell>
   );
+}
+
+function joinLines(items: string[]) {
+  return items.join("\n");
 }

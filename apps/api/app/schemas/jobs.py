@@ -94,7 +94,7 @@ class JobRubricDraftItemRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     description: str = Field(min_length=1, max_length=2000)
     criterion_type: Literal["weighted", "hard_requirement"]
-    weight_input: float = Field(ge=0)
+    weight_input: float = Field(gt=0, le=100)
 
     model_config = ConfigDict(extra="forbid", from_attributes=True)
 
@@ -109,6 +109,8 @@ class JobRubricDraftItemResponse(BaseModel):
 
 class JobChatRequest(BaseModel):
     description_text: str = Field(min_length=1, max_length=12000)
+    responsibilities: list[str] = Field(default_factory=list, max_length=50)
+    skills: list[str] = Field(default_factory=list, max_length=50)
     rubric_items: list[JobRubricDraftItemRequest] = Field(min_length=1, max_length=12)
     recent_messages: list[JobEditorMessage] = Field(default_factory=list, max_length=5)
     user_input: str = Field(min_length=1, max_length=4000)
@@ -123,24 +125,27 @@ class JobChatRequest(BaseModel):
             raise ValueError("text fields must not be empty.")
         return normalized
 
+    @field_validator("responsibilities", "skills", mode="before")
+    @classmethod
+    def normalize_string_lists(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("list fields must be arrays.")
+
+        normalized_items: list[str] = []
+        for item in value:
+            if not isinstance(item, str):
+                raise ValueError("list items must be strings.")
+            normalized = item.strip()
+            if normalized:
+                normalized_items.append(normalized)
+
+        return normalized_items
+
 
 class JobAgentEditRequest(JobChatRequest):
     pass
-
-
-class JobRegenerateRequest(BaseModel):
-    recent_messages: list[JobEditorMessage] = Field(default_factory=list, max_length=5)
-    history_summary: str | None = Field(default=None, max_length=4000)
-
-    model_config = ConfigDict(extra="forbid")
-
-    @field_validator("history_summary")
-    @classmethod
-    def normalize_history_summary(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        normalized = value.strip()
-        return normalized or None
 
 
 class JobChatResponse(BaseModel):
@@ -149,11 +154,15 @@ class JobChatResponse(BaseModel):
 
 class JobGeneratedContentResponse(BaseModel):
     description_text: str
+    responsibilities: list[str]
+    skills: list[str]
     rubric_items: list[JobRubricDraftItemResponse]
 
 
 class JobFinalizeRequest(BaseModel):
     description_text: str = Field(min_length=1, max_length=12000)
+    responsibilities: list[str] = Field(default_factory=list, max_length=50)
+    skills: list[str] = Field(default_factory=list, max_length=50)
     rubric_items: list[JobRubricDraftItemRequest] = Field(min_length=1, max_length=12)
 
     model_config = ConfigDict(extra="forbid")
@@ -165,6 +174,24 @@ class JobFinalizeRequest(BaseModel):
         if not normalized:
             raise ValueError("description_text must not be empty.")
         return normalized
+
+    @field_validator("responsibilities", "skills", mode="before")
+    @classmethod
+    def normalize_finalize_lists(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("list fields must be arrays.")
+
+        normalized_items: list[str] = []
+        for item in value:
+            if not isinstance(item, str):
+                raise ValueError("list items must be strings.")
+            normalized = item.strip()
+            if normalized:
+                normalized_items.append(normalized)
+
+        return normalized_items
 
 
 class JobFinalizeResponse(BaseModel):
@@ -246,6 +273,8 @@ class JobEditResponse(BaseModel):
     original_form_input_json: dict[str, Any] | None
     editor_history_summary: str | None
     editor_recent_messages_json: list[dict[str, Any]]
+    responsibilities: list[str]
+    skills: list[str]
     created_at: datetime
     updated_at: datetime
     finalized_at: datetime | None

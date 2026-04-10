@@ -29,7 +29,6 @@ from app.schemas.jobs import (
     JobFinalizeRequest,
     JobFinalizeResponse,
     JobGeneratedContentResponse,
-    JobRegenerateRequest,
 )
 from app.workflows.job_definition.create_draft import JobDefinitionCreateDraftWorkflow
 
@@ -42,7 +41,6 @@ class JobService:
         draft_workflow: JobDefinitionCreateDraftWorkflow,
         chat_workflow=None,
         agent_edit_workflow=None,
-        regenerate_workflow=None,
         finalize_workflow=None,
     ) -> None:
         self.session = session
@@ -50,7 +48,6 @@ class JobService:
         self.draft_workflow = draft_workflow
         self.chat_workflow = chat_workflow
         self.agent_edit_workflow = agent_edit_workflow
-        self.regenerate_workflow = regenerate_workflow
         self.finalize_workflow = finalize_workflow
 
     def create_draft_from_description(
@@ -116,7 +113,9 @@ class JobService:
         try:
             response = self.chat_workflow.run(
                 description_text=payload.description_text,
-                rubric_items=[item.model_dump(mode="json", exclude={"id"}) for item in payload.rubric_items],
+                responsibilities=payload.responsibilities,
+                skills=payload.skills,
+                rubric_items=self._coerce_edit_rubric_items(payload.rubric_items),
                 recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
                 user_input=payload.user_input,
             )
@@ -132,28 +131,11 @@ class JobService:
         try:
             response = self.agent_edit_workflow.run(
                 description_text=payload.description_text,
-                rubric_items=[item.model_dump(mode="json", exclude={"id"}) for item in payload.rubric_items],
+                responsibilities=payload.responsibilities,
+                skills=payload.skills,
+                rubric_items=self._coerce_edit_rubric_items(payload.rubric_items),
                 recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
                 user_input=payload.user_input,
-            )
-        except ValueError as exc:
-            raise DomainValidationError(str(exc)) from exc
-        return self._to_generated_content_response(response)
-
-    def regenerate_draft(self, job_id: str, payload: JobRegenerateRequest) -> JobGeneratedContentResponse:
-        job = self._get_draft_job(job_id)
-        if self.regenerate_workflow is None:
-            raise DomainValidationError("Job regenerate workflow is not configured.")
-
-        try:
-            response = self.regenerate_workflow.run(
-                original_description_input=job.original_description_input,
-                original_form_input_json=job.original_form_input_json,
-                title=job.title,
-                summary=job.summary,
-                structured_info_json=job.structured_info_json,
-                history_summary=payload.history_summary,
-                recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
             )
         except ValueError as exc:
             raise DomainValidationError(str(exc)) from exc
@@ -167,7 +149,9 @@ class JobService:
         try:
             response = self.finalize_workflow.run(
                 description_text=payload.description_text,
-                rubric_items=[item.model_dump(mode="json", exclude={"id"}) for item in payload.rubric_items],
+                responsibilities=payload.responsibilities,
+                skills=payload.skills,
+                rubric_items=self._coerce_edit_rubric_items(payload.rubric_items),
             )
             merged_items = self._merge_finalize_enrichment(payload.rubric_items, response)
             normalized_items = self._normalize_finalize_rubric_items(merged_items)
@@ -190,7 +174,11 @@ class JobService:
                 title=response.title,
                 summary=response.summary,
                 description_text=payload.description_text,
-                structured_info_json=job.structured_info_json,
+                structured_info_json=self._merge_structured_info_fields(
+                    job.structured_info_json,
+                    responsibilities=payload.responsibilities,
+                    skills=payload.skills,
+                ),
                 rubric_items=rubric_items,
             )
             self.session.commit()
@@ -266,6 +254,8 @@ class JobService:
             original_form_input_json=job.original_form_input_json,
             editor_history_summary=job.editor_history_summary,
             editor_recent_messages_json=job.editor_recent_messages_json,
+            responsibilities=self._get_structured_string_list(job.structured_info_json, "responsibilities"),
+            skills=self._get_structured_string_list(job.structured_info_json, "skills"),
             created_at=job.created_at,
             updated_at=job.updated_at,
             finalized_at=job.finalized_at,
@@ -287,15 +277,18 @@ class JobService:
         normalized_items = self._normalize_generated_rubric_items(response.rubric_items)
         return JobGeneratedContentResponse(
             description_text=response.description_text,
+            responsibilities=response.responsibilities,
+            skills=response.skills,
             rubric_items=[self._to_draft_rubric_item_response(item) for item in normalized_items],
         )
 
     def _normalize_generated_rubric_items(self, rubric_items) -> list[dict]:
         serialized_items = rubric_items_to_json(rubric_items)
+        for item in serialized_items:
+            item["criterion_type"] = self._criterion_type_from_weight(item["weight_input"])
+
         weighted_items = [item for item in serialized_items if item["criterion_type"] == "weighted"]
-        hard_requirement_items = [
-            item for item in serialized_items if item["criterion_type"] == "hard_requirement"
-        ]
+        hard_requirement_items = [item for item in serialized_items if item["criterion_type"] == "hard_requirement"]
 
         if not weighted_items:
             raise DomainValidationError("Generated rubric items must include at least one weighted item.")
@@ -320,6 +313,46 @@ class JobService:
             raise DomainValidationError("Invalid rubric items generated by LLM.")
 
         return serialized_items
+
+    def _coerce_edit_rubric_items(self, rubric_items) -> list[dict[str, object]]:
+        coerced_items: list[dict[str, object]] = []
+        for item in rubric_items:
+            criterion_type = self._criterion_type_from_weight(item.weight_input)
+            coerced_items.append(
+                {
+                    "sort_order": item.sort_order,
+                    "name": item.name,
+                    "description": item.description,
+                    "criterion_type": criterion_type,
+                    "weight_input": item.weight_input,
+                }
+            )
+        return coerced_items
+
+    def _criterion_type_from_weight(self, weight_input: float) -> str:
+        if weight_input == 100:
+            return "hard_requirement"
+        if 0 < weight_input < 100:
+            return "weighted"
+        raise DomainValidationError("weight_input must be between 1 and 100, and 100 represents a hard requirement.")
+
+    def _merge_structured_info_fields(
+        self,
+        structured_info_json: dict,
+        *,
+        responsibilities: list[str],
+        skills: list[str],
+    ) -> dict:
+        merged = dict(structured_info_json)
+        merged["responsibilities"] = responsibilities
+        merged["skills"] = skills
+        return merged
+
+    def _get_structured_string_list(self, structured_info_json: dict, key: str) -> list[str]:
+        value = structured_info_json.get(key)
+        if not isinstance(value, list):
+            return []
+        return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
     def _to_draft_rubric_item_response(self, item: dict[str, object]) -> dict[str, object]:
         return {
@@ -361,7 +394,7 @@ class JobService:
                         "sort_order": item.sort_order,
                         "name": item.name,
                         "description": item.description,
-                        "criterion_type": item.criterion_type,
+                        "criterion_type": self._criterion_type_from_weight(item.weight_input),
                         "weight_input": item.weight_input,
                         "weight_normalized": None,
                         **enrichment,

@@ -16,7 +16,6 @@ import type {
   JobGeneratedContentRequestDto,
   JobGeneratedContentResponseDto,
   JobListResponseDto,
-  JobRegenerateRequestDto,
 } from "@/lib/api/types";
 import { ApiError } from "@/lib/api/types";
 
@@ -120,16 +119,6 @@ export function agentEditJobDraft(
   payload: JobGeneratedContentRequestDto,
 ): Promise<JobGeneratedContentResponseDto> {
   return apiRequest<JobGeneratedContentResponseDto>(`/api/jobs/${jobId}/agent-edit`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function regenerateJobDraft(
-  jobId: string,
-  payload: JobRegenerateRequestDto,
-): Promise<JobGeneratedContentResponseDto> {
-  return apiRequest<JobGeneratedContentResponseDto>(`/api/jobs/${jobId}/regenerate`, {
     method: "POST",
     body: JSON.stringify(payload),
   });

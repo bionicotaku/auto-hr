@@ -13,7 +13,6 @@ import {
   getJobEdit,
   getJobs,
   importCandidateToJob,
-  regenerateJobDraft,
 } from "@/lib/api/jobs";
 import type {
   CandidateImportResponseDto,
@@ -29,7 +28,6 @@ import type {
   JobGeneratedContentRequestDto,
   JobGeneratedContentResponseDto,
   JobListResponseDto,
-  JobRegenerateRequestDto,
 } from "@/lib/api/types";
 
 export function useJobsQuery() {
@@ -87,12 +85,6 @@ export function useJobChatMutation(jobId: string) {
 export function useJobAgentEditMutation(jobId: string) {
   return useMutation<JobGeneratedContentResponseDto, Error, JobGeneratedContentRequestDto>({
     mutationFn: (payload) => agentEditJobDraft(jobId, payload),
-  });
-}
-
-export function useJobRegenerateMutation(jobId: string) {
-  return useMutation<JobGeneratedContentResponseDto, Error, JobRegenerateRequestDto>({
-    mutationFn: (payload) => regenerateJobDraft(jobId, payload),
   });
 }
 

@@ -98,7 +98,11 @@ class JobRepository:
         return job
 
     def list_jobs(self, session: Session) -> list[Job]:
-        statement = select(Job).order_by(Job.updated_at.desc())
+        statement = (
+            select(Job)
+            .where(Job.lifecycle_status == "active")
+            .order_by(Job.updated_at.desc())
+        )
         return list(session.scalars(statement).all())
 
     def delete_draft_job(self, session: Session, job_id: str) -> bool:

@@ -15,10 +15,14 @@ class JobDefinitionFinalizeWorkflow:
         self,
         *,
         description_text: str,
+        responsibilities: list[str],
+        skills: list[str],
         rubric_items: list[dict],
     ) -> JobFinalizeScoringResponseSchema:
         prompt = build_job_finalize_prompt(
             description_text=description_text,
+            responsibilities=responsibilities,
+            skills=skills,
             rubric_items=rubric_items,
         )
         payload = self.client.generate_structured_output(

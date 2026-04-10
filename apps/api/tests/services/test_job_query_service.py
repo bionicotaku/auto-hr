@@ -138,9 +138,8 @@ def test_job_query_service_lists_jobs_with_candidate_counts(db_session) -> None:
     service = JobQueryService(db_session, JobRepository(), CandidateRepository())
     response = service.list_jobs()
 
-    assert [item.title for item in response.items] == ["AI Recruiter", "Hiring Ops Lead"]
+    assert [item.title for item in response.items] == ["AI Recruiter"]
     assert response.items[0].candidate_count == 1
-    assert response.items[1].candidate_count == 0
 
 
 def test_job_query_service_returns_job_detail_summary(db_session) -> None:

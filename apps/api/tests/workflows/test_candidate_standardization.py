@@ -52,11 +52,7 @@ class StubDraftWorkflow:
                         "name": "Execution",
                         "description": "Runs hiring funnel",
                         "criterion_type": "weighted",
-                        "weight_input": 100,
-                        "weight_normalized": 1.0,
-                        "scoring_standard_items": [{"key": "score_5", "value": "Excellent"}],
-                        "agent_prompt_text": "Judge execution",
-                        "evidence_guidance_text": "Look for examples",
+                        "weight_input": 80,
                     }
                 ],
             }
