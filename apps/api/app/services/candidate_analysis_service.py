@@ -1,3 +1,4 @@
+import logging
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +22,8 @@ from app.workflows.candidate_analysis.score_items import (
 )
 from app.workflows.candidate_analysis.standardize import CandidateStandardizeWorkflow
 from app.workflows.candidate_analysis.summarize import CandidateSummarizeWorkflow
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -58,15 +61,32 @@ class CandidateAnalysisService:
         files: list[UploadFile],
     ) -> CandidateAnalysisBundle:
         job = self._get_active_job(job_id)
-        prepared_input = await self.import_prepare_workflow.run(
-            session=self.session,
-            job_id=job_id,
-            raw_text_input=raw_text_input,
-            files=files,
+        logger.info("Candidate stage started: stage=candidate_prepare result=start job_id=%s", job_id)
+        try:
+            prepared_input = await self.import_prepare_workflow.run(
+                session=self.session,
+                job_id=job_id,
+                raw_text_input=raw_text_input,
+                files=files,
+            )
+        except Exception as exc:
+            logger.exception(
+                "Candidate stage failed: stage=candidate_prepare result=failure job_id=%s reason=%s",
+                job_id,
+                exc,
+            )
+            raise
+        logger.info(
+            "Candidate stage finished: stage=candidate_prepare result=success job_id=%s request_id=%s",
+            job_id,
+            prepared_input.temp_request_id,
         )
         try:
+            logger.info("Candidate stage started: stage=candidate_standardize result=start job_id=%s", job_id)
             standardized_candidate = self.standardize_workflow.run(prepared_input)
+            logger.info("Candidate stage finished: stage=candidate_standardize result=success job_id=%s", job_id)
             rubric_items = [self._serialize_rubric_item(item) for item in job.rubric_items]
+            logger.info("Candidate stage started: stage=candidate_score_items result=start job_id=%s", job_id)
             rubric_score_items = await self.score_items_workflow.run(
                 PreparedRubricScoringInput(
                     prepared_input=prepared_input,
@@ -74,9 +94,11 @@ class CandidateAnalysisService:
                     rubric_items=rubric_items,
                 )
             )
+            logger.info("Candidate stage finished: stage=candidate_score_items result=success job_id=%s", job_id)
             hard_requirement_overall = self._compute_hard_requirement_overall(rubric_score_items)
             overall_score_5 = self._compute_overall_score_5(rubric_score_items, rubric_items)
             overall_score_percent = round(overall_score_5 / 5 * 100, 2)
+            logger.info("Candidate stage started: stage=candidate_summarize result=start job_id=%s", job_id)
             supervisor_summary = self.summarize_workflow.run(
                 job_title=job.title,
                 job_summary=job.summary,
@@ -86,13 +108,20 @@ class CandidateAnalysisService:
                 overall_score_5=overall_score_5,
                 overall_score_percent=overall_score_percent,
             )
+            logger.info("Candidate stage finished: stage=candidate_summarize result=success job_id=%s", job_id)
             return CandidateAnalysisBundle(
                 prepared_input=prepared_input,
                 standardized_candidate=standardized_candidate,
                 rubric_score_items=rubric_score_items,
                 supervisor_summary=supervisor_summary,
             )
-        except Exception:
+        except Exception as exc:
+            logger.exception(
+                "Candidate stage failed: stage=candidate_analysis result=failure job_id=%s request_id=%s reason=%s",
+                job_id,
+                prepared_input.temp_request_id,
+                exc,
+            )
             self._cleanup_temp_request(prepared_input.temp_request_id)
             raise
 

@@ -8,6 +8,7 @@ import { CandidateImportContextCard } from "@/components/candidate/import/Candid
 import { CandidateFileDropzone } from "@/components/candidate/import/CandidateFileDropzone";
 import { CandidateImportForm } from "@/components/candidate/import/CandidateImportForm";
 import { Card } from "@/components/ui/Card";
+import { ErrorStateCard } from "@/components/ui/ErrorStateCard";
 import { Spinner } from "@/components/ui/Spinner";
 import { getJobApiErrorMessage } from "@/lib/api/jobs";
 import { useCandidateImportMutation, useJobCandidateImportContextQuery } from "@/lib/query/jobs";
@@ -112,10 +113,13 @@ export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProp
           </div>
         </Card>
       ) : contextQuery.isError ? (
-        <Card className="space-y-2">
-          <h2 className="text-lg font-semibold tracking-tight text-slate-950">加载失败</h2>
-          <p className="text-sm leading-6 text-slate-600">{getJobApiErrorMessage(contextQuery.error)}</p>
-        </Card>
+        <ErrorStateCard
+          message={getJobApiErrorMessage(contextQuery.error)}
+          actionLabel="重试"
+          onAction={() => {
+            void contextQuery.refetch();
+          }}
+        />
       ) : contextQuery.data ? (
         <div className="space-y-6">
           <CandidateImportContextCard context={contextQuery.data} />

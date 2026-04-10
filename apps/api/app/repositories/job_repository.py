@@ -110,9 +110,31 @@ class JobRepository:
         if job is None or job.lifecycle_status != "draft":
             return False
 
-        session.execute(delete(JobRubricItem).where(JobRubricItem.job_id == job_id))
-        session.execute(delete(Job).where(Job.id == job_id))
+        session.delete(job)
         return True
+
+    def list_expired_drafts(
+        self,
+        session: Session,
+        *,
+        older_than: datetime,
+        limit: int | None = None,
+    ) -> list[Job]:
+        statement = (
+            select(Job)
+            .where(Job.lifecycle_status == "draft", Job.updated_at <= older_than)
+            .order_by(Job.updated_at.asc())
+        )
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(session.scalars(statement).all())
+
+    def delete_jobs(self, session: Session, jobs: list[Job]) -> int:
+        deleted_count = 0
+        for job in jobs:
+            session.delete(job)
+            deleted_count += 1
+        return deleted_count
 
     def replace_rubric_items(
         self,

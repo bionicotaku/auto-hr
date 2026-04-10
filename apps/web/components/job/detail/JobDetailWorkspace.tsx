@@ -4,8 +4,10 @@ import { useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ErrorStateCard } from "@/components/ui/ErrorStateCard";
+import { Spinner } from "@/components/ui/Spinner";
 import { CandidateList } from "@/components/job/detail/CandidateList";
 import { CandidateListToolbar } from "@/components/job/detail/CandidateListToolbar";
 import { JobSummaryPanel } from "@/components/job/detail/JobSummaryPanel";
@@ -67,7 +69,15 @@ export function JobDetailWorkspace({ jobId }: JobDetailWorkspaceProps) {
 
   if (detailQuery.isLoading || candidatesQuery.isLoading) {
     return (
-      <AppShell title="岗位详情" description="正在加载岗位信息和候选人列表。">
+      <AppShell
+        title="岗位详情"
+        description="正在加载岗位信息和候选人列表。"
+        actions={
+          <Button href="/jobs" variant="secondary">
+            返回岗位列表
+          </Button>
+        }
+      >
         <Card className="flex min-h-[260px] items-center justify-center">
           <div className="inline-flex items-center gap-2 text-sm text-slate-600">
             <Spinner className="h-4 w-4 border-slate-300 border-t-slate-800" />
@@ -80,13 +90,22 @@ export function JobDetailWorkspace({ jobId }: JobDetailWorkspaceProps) {
 
   if (detailQuery.isError || candidatesQuery.isError) {
     return (
-      <AppShell title="岗位详情" description="加载失败，请稍后重试。">
-        <Card className="space-y-2">
-          <h2 className="text-lg font-semibold tracking-tight text-slate-950">加载失败</h2>
-          <p className="text-sm leading-7 text-slate-600">
-            {getJobApiErrorMessage(detailQuery.error ?? candidatesQuery.error)}
-          </p>
-        </Card>
+      <AppShell
+        title="岗位详情"
+        description="加载失败，请稍后重试。"
+        actions={
+          <Button href="/jobs" variant="secondary">
+            返回岗位列表
+          </Button>
+        }
+      >
+        <ErrorStateCard
+          message={getJobApiErrorMessage(detailQuery.error ?? candidatesQuery.error)}
+          actionLabel="重试"
+          onAction={() => {
+            void Promise.all([detailQuery.refetch(), candidatesQuery.refetch()]);
+          }}
+        />
       </AppShell>
     );
   }
@@ -96,7 +115,15 @@ export function JobDetailWorkspace({ jobId }: JobDetailWorkspaceProps) {
   }
 
   return (
-    <AppShell title="岗位详情" description="查看岗位摘要、候选人列表，并继续推进导入和筛选。">
+    <AppShell
+      title="岗位详情"
+      description="查看岗位摘要、候选人列表，并继续推进导入和筛选。"
+      actions={
+        <Button href="/jobs" variant="secondary">
+          返回岗位列表
+        </Button>
+      }
+    >
       <div className="space-y-6">
         <JobSummaryPanel job={detailQuery.data} />
         <CandidateListToolbar

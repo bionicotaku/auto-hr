@@ -172,6 +172,18 @@ def test_create_draft_from_form_persists_job(db_session) -> None:
     assert loaded.original_form_input_json["job_title"] == "AI Recruiter"
 
 
+def test_create_draft_logs_stage_success(db_session, caplog) -> None:
+    service = JobService(db_session, JobRepository(), StubWorkflow(result=make_job_draft()))
+
+    with caplog.at_level("INFO"):
+        response = service.create_draft_from_description(
+            CreateJobFromDescriptionRequest(description_text="A long enough original job description.")
+        )
+
+    assert response.lifecycle_status == "draft"
+    assert f"stage=job_draft_create result=success creation_mode=from_description job_id={response.job_id}" in caplog.text
+
+
 def test_workflow_failure_does_not_create_dirty_draft(db_session) -> None:
     service = JobService(
         db_session,

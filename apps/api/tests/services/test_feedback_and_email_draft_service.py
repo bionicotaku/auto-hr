@@ -170,6 +170,17 @@ def test_feedback_service_updates_status_adds_tag_and_feedback(db_session) -> No
     assert refreshed.feedbacks[-1].note_text == "安排二轮面试"
 
 
+def test_feedback_service_logs_status_update(db_session, caplog) -> None:
+    candidate = create_candidate_detail_graph(db_session)
+    service = FeedbackService(db_session, CandidateRepository())
+
+    with caplog.at_level("INFO"):
+        response = service.update_status(candidate.id, "in_progress")
+
+    assert response.current_status == "in_progress"
+    assert f"stage=candidate_status_update result=success candidate_id={candidate.id} current_status=in_progress" in caplog.text
+
+
 def test_feedback_service_rejects_duplicate_tag(db_session) -> None:
     candidate = create_candidate_detail_graph(db_session)
     service = FeedbackService(db_session, CandidateRepository())

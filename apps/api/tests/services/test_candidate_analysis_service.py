@@ -348,7 +348,7 @@ async def test_candidate_analysis_service_propagates_summarize_failure(db_sessio
 
 @pytest.mark.anyio
 async def test_candidate_analysis_service_cleans_temp_dir_after_standardize_failure(
-    db_session, tmp_path, monkeypatch
+    db_session, tmp_path, monkeypatch, caplog
 ) -> None:
     monkeypatch.setenv("TEMP_UPLOAD_DIR", str(tmp_path / "tmp"))
     get_settings.cache_clear()
@@ -369,8 +369,10 @@ async def test_candidate_analysis_service_cleans_temp_dir_after_standardize_fail
         temp_upload_dir_path=settings.temp_upload_dir_path,
     )
 
-    with pytest.raises(DomainValidationError, match="standardize failed"):
+    with caplog.at_level("INFO"), pytest.raises(DomainValidationError, match="standardize failed"):
         await service.analyze_candidate(job_id=job.id, raw_text_input="Candidate raw text", files=[])
 
     temp_root = settings.temp_upload_dir_path / "candidate-imports"
     assert not temp_root.exists() or list(temp_root.iterdir()) == []
+    assert "stage=candidate_standardize result=start" in caplog.text
+    assert "stage=candidate_analysis result=failure" in caplog.text

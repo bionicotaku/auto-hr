@@ -3,6 +3,7 @@
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ErrorStateCard } from "@/components/ui/ErrorStateCard";
 import { Spinner } from "@/components/ui/Spinner";
 import { getJobApiErrorMessage } from "@/lib/api/jobs";
 import { useJobsQuery } from "@/lib/query/jobs";
@@ -28,10 +29,13 @@ export function JobsOverview() {
           </div>
         </Card>
       ) : jobsQuery.isError ? (
-        <Card className="space-y-2">
-          <h2 className="text-lg font-semibold tracking-tight text-slate-950">加载失败</h2>
-          <p className="text-sm leading-7 text-slate-600">{getJobApiErrorMessage(jobsQuery.error)}</p>
-        </Card>
+        <ErrorStateCard
+          message={getJobApiErrorMessage(jobsQuery.error)}
+          actionLabel="重试"
+          onAction={() => {
+            void jobsQuery.refetch();
+          }}
+        />
       ) : jobsQuery.data && jobsQuery.data.items.length > 0 ? (
         <div className="grid gap-5 lg:grid-cols-2">
           {jobsQuery.data.items.map((job) => {

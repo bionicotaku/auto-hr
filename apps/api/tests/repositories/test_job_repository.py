@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from app.repositories.job_repository import (
     JobCreateData,
     JobRepository,
@@ -96,3 +98,51 @@ def test_replace_rubric_items_rewrites_previous_items(db_session) -> None:
 
     loaded = repository.get_job_for_edit(db_session, job.id)
     assert [item.name for item in loaded.rubric_items] == ["System Thinking"]
+
+
+def test_list_expired_drafts_and_delete_jobs(db_session) -> None:
+    repository = JobRepository()
+    old_draft = repository.create_job_with_rubric_items(
+        db_session,
+        job_data=make_job_create_data(),
+        rubric_items=make_rubric_items(),
+    )
+    recent_draft = repository.create_job_with_rubric_items(
+        db_session,
+        job_data=make_job_create_data(),
+        rubric_items=make_rubric_items(),
+    )
+    active_job = repository.create_job_with_rubric_items(
+        db_session,
+        job_data=JobCreateData(
+            **{
+                **make_job_create_data().__dict__,
+                "lifecycle_status": "active",
+            }
+        ),
+        rubric_items=make_rubric_items(),
+    )
+
+    old_draft.updated_at = datetime.now(UTC) - timedelta(hours=72)
+    recent_draft.updated_at = datetime.now(UTC) - timedelta(hours=12)
+    active_job.updated_at = datetime.now(UTC) - timedelta(hours=72)
+    db_session.commit()
+
+    expired = repository.list_expired_drafts(
+        db_session,
+        older_than=datetime.now(UTC) - timedelta(hours=48),
+    )
+
+    assert [job.id for job in expired] == [old_draft.id]
+
+    deleted_count = repository.delete_jobs(db_session, expired)
+    db_session.commit()
+
+    assert deleted_count == 1
+    remaining_expired = repository.list_expired_drafts(
+        db_session,
+        older_than=datetime.now(UTC) - timedelta(hours=48),
+    )
+    assert remaining_expired == []
+    assert repository.get_job_for_edit(db_session, recent_draft.id).id == recent_draft.id
+    assert repository.get_job_for_edit(db_session, active_job.id).id == active_job.id

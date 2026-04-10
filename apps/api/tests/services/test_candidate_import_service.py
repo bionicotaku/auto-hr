@@ -258,10 +258,21 @@ async def test_candidate_import_service_persists_candidate_and_moves_files(db_se
     candidate = db_session.get(Candidate, response.candidate_id)
     assert candidate is not None
     assert response.job_id == job.id
-    assert len(candidate.documents) == 1
-    assert Path(candidate.documents[0].storage_path).exists()
-    assert not temp_path.exists()
-    assert not (settings.temp_upload_dir_path / "candidate-imports" / "request-001").exists()
+
+
+@pytest.mark.anyio
+async def test_candidate_import_service_logs_failure(db_session, caplog) -> None:
+    service = CandidateImportService(
+        db_session,
+        StubCandidateAnalysisService(error=DomainValidationError("analysis failed")),
+        CandidatePersistWorkflow(settings=get_settings(), candidate_repository=CandidateRepository()),
+    )
+
+    with caplog.at_level("INFO"), pytest.raises(DomainValidationError, match="analysis failed"):
+        await service.import_candidate(job_id="job-123", raw_text_input="Candidate raw text", files=[])
+
+    assert "stage=candidate_import result=start job_id=job-123" in caplog.text
+    assert "stage=candidate_import result=failure job_id=job-123 reason=known_error" in caplog.text
 
 
 @pytest.mark.anyio

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
+import { ErrorStateCard } from "@/components/ui/ErrorStateCard";
 import { Spinner } from "@/components/ui/Spinner";
 import { getJobApiErrorMessage } from "@/lib/api/jobs";
 import type { JobEditorMessageDto, JobRubricDraftItemDto } from "@/lib/api/types";
@@ -323,10 +324,13 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
           </div>
         </Card>
       ) : editQuery.isError ? (
-        <Card className="space-y-2">
-          <h2 className="text-lg font-semibold tracking-tight text-slate-950">加载失败</h2>
-          <p className="text-sm leading-6 text-slate-600">{getJobApiErrorMessage(editQuery.error)}</p>
-        </Card>
+        <ErrorStateCard
+          message={getJobApiErrorMessage(editQuery.error)}
+          actionLabel="重试"
+          onAction={() => {
+            void editQuery.refetch();
+          }}
+        />
       ) : (
         <>
           <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr_0.85fr]">

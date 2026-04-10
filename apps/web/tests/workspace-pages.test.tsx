@@ -68,6 +68,7 @@ describe("Workspace pages", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "加载失败" })).toBeInTheDocument();
       expect(screen.getByText("网络连接失败")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
     });
   });
 
@@ -83,6 +84,7 @@ describe("Workspace pages", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "加载失败" })).toBeInTheDocument();
       expect(screen.getByText("请求超时，请稍后重试。")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
     });
   });
 

@@ -8,6 +8,7 @@ import { CandidateRubricResultsPanel } from "@/components/candidate/detail/Candi
 import { CandidateSupervisorPanel } from "@/components/candidate/detail/CandidateSupervisorPanel";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ErrorStateCard } from "@/components/ui/ErrorStateCard";
 import { Spinner } from "@/components/ui/Spinner";
 import { getJobApiErrorMessage } from "@/lib/api/jobs";
 import { useCandidateDetailQuery } from "@/lib/query/candidates";
@@ -35,10 +36,13 @@ export function CandidateDetailWorkspace({ candidateId }: CandidateDetailWorkspa
   if (detailQuery.isError) {
     return (
       <AppShell title="候选人详情" description="加载失败，请稍后重试。">
-        <Card className="space-y-2">
-          <h2 className="text-lg font-semibold tracking-tight text-slate-950">加载失败</h2>
-          <p className="text-sm leading-7 text-slate-600">{getJobApiErrorMessage(detailQuery.error)}</p>
-        </Card>
+        <ErrorStateCard
+          message={getJobApiErrorMessage(detailQuery.error)}
+          actionLabel="重试"
+          onAction={() => {
+            void detailQuery.refetch();
+          }}
+        />
       </AppShell>
     );
   }

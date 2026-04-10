@@ -1,6 +1,6 @@
 SHELL := /bin/zsh
 
-.PHONY: bootstrap dev dev-web dev-api migrate-api lint format test
+.PHONY: bootstrap dev dev-web dev-api migrate-api cleanup-drafts lint format test
 
 bootstrap:
 	./scripts/bootstrap.sh
@@ -16,6 +16,9 @@ dev-api:
 
 migrate-api:
 	./scripts/migrate-api.sh
+
+cleanup-drafts:
+	./.venv/bin/python ./scripts/cleanup_drafts.py
 
 lint:
 	./scripts/lint.sh

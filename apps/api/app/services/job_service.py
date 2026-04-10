@@ -1,3 +1,4 @@
+import logging
 from math import floor
 
 from sqlalchemy.orm import Session
@@ -32,6 +33,8 @@ from app.schemas.jobs import (
 )
 from app.workflows.job_definition.create_draft import JobDefinitionCreateDraftWorkflow
 
+logger = logging.getLogger(__name__)
+
 
 class JobService:
     def __init__(
@@ -53,28 +56,58 @@ class JobService:
     def create_draft_from_description(
         self, payload: CreateJobFromDescriptionRequest
     ) -> CreateJobDraftResponse:
+        logger.info("Job stage started: stage=job_draft_create result=start creation_mode=from_description")
         try:
             draft = self.draft_workflow.from_description(payload.description_text)
+            job = self._persist_draft(
+                creation_mode="from_description",
+                draft=draft,
+                original_description_input=payload.description_text,
+                original_form_input_json=None,
+            )
+        except DomainValidationError as exc:
+            logger.warning(
+                "Job stage failed: stage=job_draft_create result=failure creation_mode=from_description reason=%s",
+                exc,
+            )
+            raise
         except ValueError as exc:
+            logger.warning(
+                "Job stage failed: stage=job_draft_create result=failure creation_mode=from_description reason=%s",
+                exc,
+            )
             raise DomainValidationError(str(exc)) from exc
-        job = self._persist_draft(
-            creation_mode="from_description",
-            draft=draft,
-            original_description_input=payload.description_text,
-            original_form_input_json=None,
+        logger.info(
+            "Job stage finished: stage=job_draft_create result=success creation_mode=from_description job_id=%s",
+            job.id,
         )
         return CreateJobDraftResponse(job_id=job.id, lifecycle_status="draft")
 
     def create_draft_from_form(self, payload: CreateJobFromFormRequest) -> CreateJobDraftResponse:
+        logger.info("Job stage started: stage=job_draft_create result=start creation_mode=from_form")
         try:
             draft = self.draft_workflow.from_form(payload.model_dump(mode="json"))
+            job = self._persist_draft(
+                creation_mode="from_form",
+                draft=draft,
+                original_description_input=None,
+                original_form_input_json=payload.model_dump(mode="json"),
+            )
+        except DomainValidationError as exc:
+            logger.warning(
+                "Job stage failed: stage=job_draft_create result=failure creation_mode=from_form reason=%s",
+                exc,
+            )
+            raise
         except ValueError as exc:
+            logger.warning(
+                "Job stage failed: stage=job_draft_create result=failure creation_mode=from_form reason=%s",
+                exc,
+            )
             raise DomainValidationError(str(exc)) from exc
-        job = self._persist_draft(
-            creation_mode="from_form",
-            draft=draft,
-            original_description_input=None,
-            original_form_input_json=payload.model_dump(mode="json"),
+        logger.info(
+            "Job stage finished: stage=job_draft_create result=success creation_mode=from_form job_id=%s",
+            job.id,
         )
         return CreateJobDraftResponse(job_id=job.id, lifecycle_status="draft")
 
@@ -110,6 +143,7 @@ class JobService:
         if self.chat_workflow is None:
             raise DomainValidationError("Job chat workflow is not configured.")
 
+        logger.info("Job stage started: stage=job_chat result=start job_id=%s", job_id)
         try:
             response = self.chat_workflow.run(
                 description_text=payload.description_text,
@@ -119,8 +153,13 @@ class JobService:
                 recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
                 user_input=payload.user_input,
             )
+        except DomainValidationError as exc:
+            logger.warning("Job stage failed: stage=job_chat result=failure job_id=%s reason=%s", job_id, exc)
+            raise
         except ValueError as exc:
+            logger.warning("Job stage failed: stage=job_chat result=failure job_id=%s reason=%s", job_id, exc)
             raise DomainValidationError(str(exc)) from exc
+        logger.info("Job stage finished: stage=job_chat result=success job_id=%s", job_id)
         return JobChatResponse(reply_text=response.reply_text)
 
     def agent_edit_draft(self, job_id: str, payload: JobAgentEditRequest) -> JobGeneratedContentResponse:
@@ -128,6 +167,7 @@ class JobService:
         if self.agent_edit_workflow is None:
             raise DomainValidationError("Job agent edit workflow is not configured.")
 
+        logger.info("Job stage started: stage=job_agent_edit result=start job_id=%s", job_id)
         try:
             response = self.agent_edit_workflow.run(
                 title=job.title,
@@ -144,8 +184,21 @@ class JobService:
                 recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
                 user_input=payload.user_input,
             )
+        except DomainValidationError as exc:
+            logger.warning(
+                "Job stage failed: stage=job_agent_edit result=failure job_id=%s reason=%s",
+                job_id,
+                exc,
+            )
+            raise
         except ValueError as exc:
+            logger.warning(
+                "Job stage failed: stage=job_agent_edit result=failure job_id=%s reason=%s",
+                job_id,
+                exc,
+            )
             raise DomainValidationError(str(exc)) from exc
+        logger.info("Job stage finished: stage=job_agent_edit result=success job_id=%s", job_id)
         return self._to_generated_content_response(response)
 
     def finalize_draft(self, job_id: str, payload: JobFinalizeRequest) -> JobFinalizeResponse:
@@ -153,6 +206,11 @@ class JobService:
         if self.finalize_workflow is None:
             raise DomainValidationError("Job finalize workflow is not configured.")
 
+        logger.info(
+            "Job stage started: stage=job_finalize result=start job_id=%s lifecycle_status=%s",
+            job_id,
+            job.lifecycle_status,
+        )
         try:
             response = self.finalize_workflow.run(
                 description_text=payload.description_text,
@@ -163,10 +221,24 @@ class JobService:
             merged_items = self._merge_finalize_enrichment(payload.rubric_items, response)
             normalized_items = self._normalize_finalize_rubric_items(merged_items)
         except DomainValidationError:
+            logger.warning(
+                "Job stage failed: stage=job_finalize result=failure job_id=%s reason=domain_validation",
+                job_id,
+            )
             raise
         except ValueError as exc:
+            logger.warning(
+                "Job stage failed: stage=job_finalize result=failure job_id=%s reason=%s",
+                job_id,
+                exc,
+            )
             raise DomainValidationError(str(exc)) from exc
         except Exception as exc:
+            logger.exception(
+                "Job stage failed: stage=job_finalize result=failure job_id=%s reason=%s",
+                job_id,
+                exc,
+            )
             raise DomainValidationError("Failed to finalize job.") from exc
 
         rubric_items = [
@@ -191,14 +263,32 @@ class JobService:
             self.session.commit()
         except DomainValidationError:
             self.session.rollback()
+            logger.warning(
+                "Job stage failed: stage=job_finalize result=failure job_id=%s reason=domain_validation",
+                job_id,
+            )
             raise
         except ValueError as exc:
             self.session.rollback()
+            logger.warning(
+                "Job stage failed: stage=job_finalize result=failure job_id=%s reason=%s",
+                job_id,
+                exc,
+            )
             raise DomainValidationError(str(exc)) from exc
         except Exception as exc:
             self.session.rollback()
+            logger.exception(
+                "Job stage failed: stage=job_finalize result=failure job_id=%s reason=%s",
+                job_id,
+                exc,
+            )
             raise DomainValidationError("Failed to finalize job.") from exc
 
+        logger.info(
+            "Job stage finished: stage=job_finalize result=success job_id=%s lifecycle_status=active",
+            job.id,
+        )
         return JobFinalizeResponse(job_id=job.id, lifecycle_status="active")
 
     def _persist_draft(

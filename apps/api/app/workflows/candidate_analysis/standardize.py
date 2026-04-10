@@ -1,3 +1,6 @@
+import base64
+from pathlib import Path
+
 from pydantic import ValidationError
 
 from app.ai.client import OpenAIResponsesClient
@@ -29,7 +32,7 @@ class CandidateStandardizeWorkflow:
             {
                 "type": "input_file",
                 "filename": document.filename,
-                "file_data": document.storage_path,
+                "file_data": self._encode_file_data(document.storage_path),
             }
             for document in prepared_input.documents
         ]
@@ -46,3 +49,12 @@ class CandidateStandardizeWorkflow:
             return CandidateStandardizationSchema.model_validate(payload)
         except ValidationError as exc:
             raise ValueError("LLM returned invalid candidate standardization schema.") from exc
+
+    def _encode_file_data(self, storage_path: str) -> str:
+        path = Path(storage_path)
+        try:
+            file_bytes = path.read_bytes()
+        except OSError as exc:
+            raise ValueError(f"Failed to read candidate document: {path.name}") from exc
+        encoded = base64.b64encode(file_bytes).decode("ascii")
+        return f"data:application/pdf;base64,{encoded}"

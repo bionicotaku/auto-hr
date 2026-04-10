@@ -1,3 +1,4 @@
+import base64
 from io import BytesIO
 
 import pytest
@@ -202,9 +203,12 @@ def test_standardize_workflow_supports_text_only_input() -> None:
     assert content[0]["type"] == "input_text"
 
 
-def test_standardize_workflow_adds_input_files_when_documents_exist() -> None:
+def test_standardize_workflow_adds_input_files_when_documents_exist(tmp_path) -> None:
     client = FakeStructuredClient(build_standardization_payload())
     workflow = CandidateStandardizeWorkflow(client)
+    pdf_path = tmp_path / "resume.pdf"
+    pdf_bytes = build_pdf_bytes()
+    pdf_path.write_bytes(pdf_bytes)
     prepared_input = PreparedCandidateImportInput(
         raw_text_input=None,
         job_id="job-001",
@@ -214,7 +218,7 @@ def test_standardize_workflow_adds_input_files_when_documents_exist() -> None:
         documents=[
             PreparedCandidateDocumentInput(
                 filename="resume.pdf",
-                storage_path="/tmp/resume.pdf",
+                storage_path=str(pdf_path),
                 mime_type="application/pdf",
                 upload_order=1,
                 extracted_text="resume text",
@@ -226,7 +230,9 @@ def test_standardize_workflow_adds_input_files_when_documents_exist() -> None:
     workflow.run(prepared_input)
 
     content = client.calls[0]["inputs"][0]["content"]
-    assert any(item["type"] == "input_file" for item in content)
+    file_item = next(item for item in content if item["type"] == "input_file")
+    assert file_item["filename"] == "resume.pdf"
+    assert file_item["file_data"] == f"data:application/pdf;base64,{base64.b64encode(pdf_bytes).decode('ascii')}"
 
 
 def test_standardize_workflow_rejects_invalid_payload() -> None:

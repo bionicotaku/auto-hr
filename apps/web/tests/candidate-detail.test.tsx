@@ -174,6 +174,7 @@ describe("Candidate detail page", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "加载失败" })).toBeInTheDocument();
       expect(screen.getByText("网络连接失败")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
     });
   });
 

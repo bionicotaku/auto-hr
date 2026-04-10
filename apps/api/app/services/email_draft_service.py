@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -10,6 +11,8 @@ from app.repositories.candidate_repository import (
 )
 from app.schemas.candidates import CandidateDetailEmailDraftResponse
 from app.workflows.candidate_analysis.email_draft import CandidateEmailDraftWorkflow
+
+logger = logging.getLogger(__name__)
 
 
 class EmailDraftService:
@@ -24,8 +27,17 @@ class EmailDraftService:
         self.email_draft_workflow = email_draft_workflow
 
     def create_email_draft(self, candidate_id: str, draft_type: str) -> CandidateDetailEmailDraftResponse:
+        logger.info(
+            "Candidate stage started: stage=candidate_email_draft_create result=start candidate_id=%s draft_type=%s",
+            candidate_id,
+            draft_type,
+        )
         candidate = self._get_candidate(candidate_id)
         if candidate.job is None:
+            logger.warning(
+                "Candidate stage failed: stage=candidate_email_draft_create result=failure candidate_id=%s reason=missing_job_context",
+                candidate_id,
+            )
             raise NotFoundError(f"Candidate {candidate_id} is missing job context.")
 
         try:
@@ -36,6 +48,11 @@ class EmailDraftService:
                 candidate_context=self._build_candidate_context(candidate),
             )
         except ValueError as exc:
+            logger.warning(
+                "Candidate stage failed: stage=candidate_email_draft_create result=failure candidate_id=%s reason=%s",
+                candidate_id,
+                exc,
+            )
             raise DomainValidationError(str(exc)) from exc
 
         try:
@@ -49,10 +66,20 @@ class EmailDraftService:
                 ),
             )
             self.session.commit()
-        except Exception:
+        except Exception as exc:
             self.session.rollback()
+            logger.exception(
+                "Candidate stage failed: stage=candidate_email_draft_create result=failure candidate_id=%s reason=%s",
+                candidate_id,
+                exc,
+            )
             raise
 
+        logger.info(
+            "Candidate stage finished: stage=candidate_email_draft_create result=success candidate_id=%s draft_id=%s",
+            candidate.id,
+            created.id,
+        )
         return CandidateDetailEmailDraftResponse(
             id=created.id,
             draft_type=created.draft_type,
