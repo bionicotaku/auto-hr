@@ -12,5 +12,6 @@ echo "[lint] running backend syntax checks"
 
 if [ -f "apps/web/package.json" ]; then
   echo "[lint] running frontend typecheck"
+  rm -f apps/web/tsconfig.tsbuildinfo
   pnpm --filter auto-hr-web typecheck
 fi

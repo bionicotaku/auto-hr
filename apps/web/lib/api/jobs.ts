@@ -6,6 +6,8 @@ import type {
   JobChatRequestDto,
   JobChatResponseDto,
   JobEditResponseDto,
+  JobFinalizeRequestDto,
+  JobFinalizeResponseDto,
   JobGeneratedContentRequestDto,
   JobGeneratedContentResponseDto,
   JobRegenerateRequestDto,
@@ -89,6 +91,22 @@ export function regenerateJobDraft(
   return apiRequest<JobGeneratedContentResponseDto>(`/api/jobs/${jobId}/regenerate`, {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function finalizeJobDraft(
+  jobId: string,
+  payload: JobFinalizeRequestDto,
+): Promise<JobFinalizeResponseDto> {
+  return apiRequest<JobFinalizeResponseDto>(`/api/jobs/${jobId}/finalize`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteJobDraft(jobId: string): Promise<void> {
+  return apiRequest<void>(`/api/jobs/${jobId}/draft`, {
+    method: "DELETE",
   });
 }
 

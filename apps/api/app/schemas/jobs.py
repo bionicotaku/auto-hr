@@ -151,6 +151,26 @@ class JobGeneratedContentResponse(BaseModel):
     rubric_items: list[JobGeneratedRubricItemResponse]
 
 
+class JobFinalizeRequest(BaseModel):
+    description_text: str = Field(min_length=1, max_length=12000)
+    rubric_items: list[JobRubricItemRequest] = Field(min_length=1, max_length=12)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("description_text")
+    @classmethod
+    def normalize_finalize_description(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("description_text must not be empty.")
+        return normalized
+
+
+class JobFinalizeResponse(BaseModel):
+    job_id: str
+    lifecycle_status: Literal["active"]
+
+
 class JobEditResponse(BaseModel):
     id: str
     lifecycle_status: Literal["draft", "active"]

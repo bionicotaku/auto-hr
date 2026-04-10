@@ -160,3 +160,52 @@ structured_info_json:
 最近对话：
 {serialized_messages}
 """.strip()
+
+
+def build_job_finalize_prompt(
+    *,
+    title: str,
+    summary: str,
+    description_text: str,
+    rubric_items: list[dict],
+    structured_info_json: dict,
+    original_description_input: str | None,
+    original_form_input_json: dict | None,
+) -> str:
+    serialized_rubric = json.dumps(rubric_items, ensure_ascii=False, indent=2)
+    serialized_structured_info = json.dumps(structured_info_json, ensure_ascii=False, indent=2)
+    serialized_form = json.dumps(original_form_input_json, ensure_ascii=False, indent=2)
+    return f"""
+你是招聘系统中的岗位定稿助手。
+
+请基于当前最终版岗位定义，输出一个可直接入库的正式 Job 严格 JSON。
+
+要求：
+1. 输出必须符合给定 JSON Schema。
+2. 返回 `title`、`summary`、`structured_info_json`、`description_text`、完整 `rubric_items`。
+3. rubric_items 必须保留 `criterion_type`、`scoring_standard_json`、`agent_prompt_text`、`evidence_guidance_text`。
+4. hard_requirement 项必须设置 `weight_input=100` 且 `weight_normalized=null`。
+5. weighted 项必须设置合法 `weight_normalized`，并保持语义完整。
+6. 不要输出额外说明，不要输出 markdown。
+
+当前标题：
+{title}
+
+当前 summary：
+{summary}
+
+当前职位描述：
+{description_text}
+
+当前 structured_info_json：
+{serialized_structured_info}
+
+当前 rubric：
+{serialized_rubric}
+
+原始职位描述输入：
+{original_description_input or ""}
+
+原始表单输入：
+{serialized_form}
+""".strip()

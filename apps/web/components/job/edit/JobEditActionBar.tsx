@@ -4,12 +4,20 @@ import { Spinner } from "@/components/ui/Spinner";
 
 type JobEditActionBarProps = {
   isRegeneratePending: boolean;
+  isFinalizePending: boolean;
+  isCancelPending: boolean;
   onRegenerate: () => void;
+  onCancel: () => void;
+  onFinalize: () => void;
 };
 
 export function JobEditActionBar({
   isRegeneratePending,
+  isFinalizePending,
+  isCancelPending,
   onRegenerate,
+  onCancel,
+  onFinalize,
 }: JobEditActionBarProps) {
   return (
     <Card className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -18,7 +26,11 @@ export function JobEditActionBar({
         <p className="text-sm leading-6 text-slate-600">检查内容后，再重新生成或完成当前岗位。</p>
       </div>
       <div className="flex flex-wrap gap-3">
-        <Button variant="secondary" onClick={onRegenerate} disabled={isRegeneratePending}>
+        <Button
+          variant="secondary"
+          onClick={onRegenerate}
+          disabled={isRegeneratePending || isFinalizePending || isCancelPending}
+        >
           {isRegeneratePending ? (
             <span className="inline-flex items-center gap-2">
               <Spinner className="h-4 w-4 border-slate-300 border-t-slate-800" />
@@ -28,10 +40,26 @@ export function JobEditActionBar({
             "重新生成"
           )}
         </Button>
-        <Button href="/jobs" variant="ghost">
-          取消
+        <Button variant="ghost" onClick={onCancel} disabled={isRegeneratePending || isFinalizePending || isCancelPending}>
+          {isCancelPending ? (
+            <span className="inline-flex items-center gap-2">
+              <Spinner className="h-4 w-4 border-slate-300 border-t-slate-800" />
+              取消中
+            </span>
+          ) : (
+            "取消"
+          )}
         </Button>
-        <Button disabled>完成</Button>
+        <Button onClick={onFinalize} disabled={isRegeneratePending || isFinalizePending || isCancelPending}>
+          {isFinalizePending ? (
+            <span className="inline-flex items-center gap-2">
+              <Spinner className="h-4 w-4 border-white/30 border-t-white" />
+              完成中
+            </span>
+          ) : (
+            "完成"
+          )}
+        </Button>
       </div>
     </Card>
   );

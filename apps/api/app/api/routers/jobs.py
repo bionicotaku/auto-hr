@@ -10,6 +10,8 @@ from app.schemas.jobs import (
     JobChatRequest,
     JobChatResponse,
     JobEditResponse,
+    JobFinalizeRequest,
+    JobFinalizeResponse,
     JobGeneratedContentResponse,
     JobRegenerateRequest,
 )
@@ -74,6 +76,17 @@ def regenerate_job_draft(
 ) -> JobGeneratedContentResponse:
     service = service_deps.get_job_service(session, settings)
     return service.regenerate_draft(job_id, payload)
+
+
+@router.post("/{job_id}/finalize", response_model=JobFinalizeResponse)
+def finalize_job_draft(
+    job_id: str,
+    payload: JobFinalizeRequest,
+    session: DbSession,
+    settings: AppSettings,
+) -> JobFinalizeResponse:
+    service = service_deps.get_job_service(session, settings)
+    return service.finalize_draft(job_id, payload)
 
 
 @router.delete("/{job_id}/draft", status_code=status.HTTP_204_NO_CONTENT)

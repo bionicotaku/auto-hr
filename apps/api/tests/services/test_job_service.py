@@ -1,12 +1,19 @@
 import pytest
 
+from app.core.exceptions import ConflictError, DomainValidationError
 from app.repositories.job_repository import JobRepository
-from app.schemas.ai.job_definition import JobAgentEditResponseSchema, JobChatResponseSchema, JobDraftSchema
+from app.schemas.ai.job_definition import (
+    JobAgentEditResponseSchema,
+    JobChatResponseSchema,
+    JobDraftSchema,
+    JobFinalizeResponseSchema,
+)
 from app.schemas.jobs import (
     CreateJobFromDescriptionRequest,
     CreateJobFromFormRequest,
     JobAgentEditRequest,
     JobChatRequest,
+    JobFinalizeRequest,
     JobRegenerateRequest,
 )
 from app.services.job_service import JobService
@@ -61,6 +68,19 @@ class StubRegenerateWorkflow:
         )
 
 
+class StubFinalizeWorkflow:
+    def __init__(self, result=None, error: Exception | None = None):
+        self.calls: list[dict] = []
+        self.result = result
+        self.error = error
+
+    def run(self, **kwargs):
+        self.calls.append(kwargs)
+        if self.error:
+            raise self.error
+        return self.result
+
+
 def make_job_draft() -> JobDraftSchema:
     return JobDraftSchema.model_validate(
         {
@@ -90,6 +110,63 @@ def make_job_draft() -> JobDraftSchema:
                 },
                 {
                     "sort_order": 2,
+                    "name": "English collaboration",
+                    "description": "Works globally",
+                    "criterion_type": "hard_requirement",
+                    "weight_input": 100,
+                    "weight_normalized": None,
+                    "scoring_standard_json": {"pass_definition": "Can collaborate globally"},
+                    "agent_prompt_text": "Judge English collaboration",
+                    "evidence_guidance_text": "Look for cross-border work",
+                },
+            ],
+        }
+    )
+
+
+def make_finalize_result(
+    weight_input: float = 35,
+    secondary_weight_input: float = 15,
+) -> JobFinalizeResponseSchema:
+    return JobFinalizeResponseSchema.model_validate(
+        {
+            "title": "Final Recruiting Lead",
+            "summary": "Final summary",
+            "description_text": "Final JD body",
+            "structured_info_json": {
+                "department": "Talent",
+                "location": "Remote",
+                "employment_type": "Full-time",
+                "seniority_level": "Lead",
+                "responsibilities": ["Run hiring"],
+                "requirements": ["Strong recruiting"],
+                "skills": ["Leadership"],
+            },
+            "rubric_items": [
+                {
+                    "sort_order": 1,
+                    "name": "Execution",
+                    "description": "Can run the funnel",
+                    "criterion_type": "weighted",
+                    "weight_input": weight_input,
+                    "weight_normalized": 0.35,
+                    "scoring_standard_json": {"score_5": "Excellent"},
+                    "agent_prompt_text": "Judge execution",
+                    "evidence_guidance_text": "Look for hiring throughput",
+                },
+                {
+                    "sort_order": 2,
+                    "name": "Stakeholder management",
+                    "description": "Aligns hiring managers",
+                    "criterion_type": "weighted",
+                    "weight_input": secondary_weight_input,
+                    "weight_normalized": 0.15 if secondary_weight_input > 0 else 0,
+                    "scoring_standard_json": {"score_5": "Excellent"},
+                    "agent_prompt_text": "Judge stakeholder management",
+                    "evidence_guidance_text": "Look for alignment",
+                },
+                {
+                    "sort_order": 3,
                     "name": "English collaboration",
                     "description": "Works globally",
                     "criterion_type": "hard_requirement",
@@ -228,3 +305,115 @@ def test_regenerate_uses_original_input_not_current_description(db_session) -> N
     assert response.description_text == "Regenerated JD body"
     assert regenerate_workflow.calls[0]["original_description_input"] == "Original raw description input."
     assert "description_text" not in regenerate_workflow.calls[0]
+
+
+def test_finalize_draft_updates_job_to_active_and_replaces_rubric(db_session) -> None:
+    finalize_workflow = StubFinalizeWorkflow(result=make_finalize_result())
+    service = JobService(
+        db_session,
+        JobRepository(),
+        StubWorkflow(result=make_job_draft()),
+        finalize_workflow=finalize_workflow,
+    )
+    created = service.create_draft_from_description(
+        CreateJobFromDescriptionRequest(description_text="Original raw description input.")
+    )
+    loaded_before = service.get_job_edit_payload(created.job_id)
+
+    response = service.finalize_draft(
+        created.job_id,
+        JobFinalizeRequest(
+          description_text="Locally finalized description",
+          rubric_items=loaded_before.rubric_items,
+        ),
+    )
+
+    loaded_after = service.get_job_edit_payload(created.job_id)
+    assert response.lifecycle_status == "active"
+    assert loaded_after.lifecycle_status == "active"
+    assert loaded_after.title == "Final Recruiting Lead"
+    assert loaded_after.finalized_at is not None
+    assert len(loaded_after.rubric_items) == 3
+    assert sum(item.weight_input for item in loaded_after.rubric_items if item.criterion_type == "weighted") == 100
+
+
+def test_finalize_failure_does_not_override_draft(db_session) -> None:
+    finalize_workflow = StubFinalizeWorkflow(error=ValueError("finalize failed"))
+    service = JobService(
+        db_session,
+        JobRepository(),
+        StubWorkflow(result=make_job_draft()),
+        finalize_workflow=finalize_workflow,
+    )
+    created = service.create_draft_from_description(
+        CreateJobFromDescriptionRequest(description_text="Original raw description input.")
+    )
+    loaded_before = service.get_job_edit_payload(created.job_id)
+
+    with pytest.raises(DomainValidationError):
+        service.finalize_draft(
+            created.job_id,
+            JobFinalizeRequest(
+                description_text="Locally finalized description",
+                rubric_items=loaded_before.rubric_items,
+            ),
+        )
+
+    loaded_after = service.get_job_edit_payload(created.job_id)
+    assert loaded_after.lifecycle_status == "draft"
+    assert loaded_after.description_text == "JD body"
+    assert loaded_after.finalized_at is None
+
+
+def test_finalize_rejects_active_job(db_session) -> None:
+    finalize_workflow = StubFinalizeWorkflow(result=make_finalize_result())
+    service = JobService(
+        db_session,
+        JobRepository(),
+        StubWorkflow(result=make_job_draft()),
+        finalize_workflow=finalize_workflow,
+    )
+    created = service.create_draft_from_description(
+        CreateJobFromDescriptionRequest(description_text="Original raw description input.")
+    )
+    draft_payload = service.get_job_edit_payload(created.job_id)
+    service.finalize_draft(
+        created.job_id,
+        JobFinalizeRequest(
+            description_text="Locally finalized description",
+            rubric_items=draft_payload.rubric_items,
+        ),
+    )
+
+    with pytest.raises(ConflictError):
+        service.finalize_draft(
+            created.job_id,
+            JobFinalizeRequest(
+                description_text="Second finalize attempt",
+                rubric_items=service.get_job_edit_payload(created.job_id).rubric_items,
+            ),
+        )
+
+
+def test_finalize_rejects_zero_weighted_total(db_session) -> None:
+    finalize_workflow = StubFinalizeWorkflow(
+        result=make_finalize_result(weight_input=0, secondary_weight_input=0)
+    )
+    service = JobService(
+        db_session,
+        JobRepository(),
+        StubWorkflow(result=make_job_draft()),
+        finalize_workflow=finalize_workflow,
+    )
+    created = service.create_draft_from_description(
+        CreateJobFromDescriptionRequest(description_text="Original raw description input.")
+    )
+
+    with pytest.raises(DomainValidationError):
+        service.finalize_draft(
+            created.job_id,
+            JobFinalizeRequest(
+                description_text="Locally finalized description",
+                rubric_items=service.get_job_edit_payload(created.job_id).rubric_items,
+            ),
+        )

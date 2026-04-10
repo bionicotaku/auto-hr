@@ -1,6 +1,7 @@
- "use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
@@ -9,8 +10,10 @@ import { getJobApiErrorMessage } from "@/lib/api/jobs";
 import type { JobEditorMessageDto, JobRubricItemDto } from "@/lib/api/types";
 import {
   useJobAgentEditMutation,
+  useDeleteJobDraftMutation,
   useJobChatMutation,
   useJobEditQuery,
+  useJobFinalizeMutation,
   useJobRegenerateMutation,
 } from "@/lib/query/jobs";
 
@@ -39,10 +42,13 @@ const rubricExamples = [
 ];
 
 export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
+  const router = useRouter();
   const editQuery = useJobEditQuery(jobId);
   const chatMutation = useJobChatMutation(jobId);
   const agentMutation = useJobAgentEditMutation(jobId);
   const regenerateMutation = useJobRegenerateMutation(jobId);
+  const finalizeMutation = useJobFinalizeMutation(jobId);
+  const deleteDraftMutation = useDeleteJobDraftMutation(jobId);
 
   const [descriptionText, setDescriptionText] = useState("");
   const [rubricItems, setRubricItems] = useState<JobRubricItemDto[]>([]);
@@ -77,7 +83,12 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
     setPanelError(null);
   }, [editQuery.data]);
 
-  const isBusy = chatMutation.isPending || agentMutation.isPending || regenerateMutation.isPending;
+  const isBusy =
+    chatMutation.isPending ||
+    agentMutation.isPending ||
+    regenerateMutation.isPending ||
+    finalizeMutation.isPending ||
+    deleteDraftMutation.isPending;
 
   const headerActions = useMemo(
     () => (
@@ -181,6 +192,29 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
     }
   }
 
+  async function handleFinalize() {
+    try {
+      setPanelError(null);
+      await finalizeMutation.mutateAsync({
+        description_text: descriptionText,
+        rubric_items: rubricItems,
+      });
+      router.push("/jobs");
+    } catch (error) {
+      setPanelError(getJobApiErrorMessage(error));
+    }
+  }
+
+  async function handleCancel() {
+    try {
+      setPanelError(null);
+      await deleteDraftMutation.mutateAsync();
+      router.push("/jobs");
+    } catch (error) {
+      setPanelError(getJobApiErrorMessage(error));
+    }
+  }
+
   return (
     <AppShell
       title="岗位编辑"
@@ -252,7 +286,11 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
 
           <JobEditActionBar
             isRegeneratePending={regenerateMutation.isPending}
+            isFinalizePending={finalizeMutation.isPending}
+            isCancelPending={deleteDraftMutation.isPending}
             onRegenerate={handleRegenerate}
+            onCancel={handleCancel}
+            onFinalize={handleFinalize}
           />
         </>
       )}

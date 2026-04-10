@@ -129,3 +129,27 @@ class JobRepository:
     def touch_updated_at(self, session: Session, job: Job) -> None:
         job.updated_at = datetime.now(UTC)
         session.add(job)
+
+    def finalize_job(
+        self,
+        session: Session,
+        job: Job,
+        *,
+        title: str,
+        summary: str,
+        description_text: str,
+        structured_info_json: dict[str, Any],
+        rubric_items: list[JobRubricItemCreateData],
+    ) -> Job:
+        job.lifecycle_status = "active"
+        job.title = title
+        job.summary = summary
+        job.description_text = description_text
+        job.structured_info_json = structured_info_json
+        job.finalized_at = datetime.now(UTC)
+        job.updated_at = datetime.now(UTC)
+        session.add(job)
+
+        self.replace_rubric_items(session, job.id, rubric_items)
+        session.flush()
+        return self.get_job_for_edit(session, job.id)

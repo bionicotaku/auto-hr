@@ -7,6 +7,7 @@ from app.services.job_service import JobService
 from app.workflows.job_definition.agent_edit import JobDefinitionAgentEditWorkflow
 from app.workflows.job_definition.chat import JobDefinitionChatWorkflow
 from app.workflows.job_definition.create_draft import JobDefinitionCreateDraftWorkflow
+from app.workflows.job_definition.finalize import JobDefinitionFinalizeWorkflow
 from app.workflows.job_definition.regenerate import JobDefinitionRegenerateWorkflow
 
 
@@ -20,4 +21,5 @@ def get_job_service(session: Session, _: Settings) -> JobService:
         chat_workflow=JobDefinitionChatWorkflow(client),
         agent_edit_workflow=JobDefinitionAgentEditWorkflow(client),
         regenerate_workflow=JobDefinitionRegenerateWorkflow(client),
+        finalize_workflow=JobDefinitionFinalizeWorkflow(client),
     )

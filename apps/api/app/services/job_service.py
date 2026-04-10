@@ -1,3 +1,5 @@
+from math import floor
+
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, DomainValidationError, NotFoundError
@@ -11,6 +13,7 @@ from app.schemas.ai.job_definition import (
     JobAgentEditResponseSchema,
     JobChatResponseSchema,
     JobDraftSchema,
+    JobFinalizeResponseSchema,
 )
 from app.schemas.jobs import (
     CreateJobFromDescriptionRequest,
@@ -20,6 +23,8 @@ from app.schemas.jobs import (
     JobChatRequest,
     JobChatResponse,
     JobEditResponse,
+    JobFinalizeRequest,
+    JobFinalizeResponse,
     JobGeneratedContentResponse,
     JobRegenerateRequest,
 )
@@ -35,6 +40,7 @@ class JobService:
         chat_workflow=None,
         agent_edit_workflow=None,
         regenerate_workflow=None,
+        finalize_workflow=None,
     ) -> None:
         self.session = session
         self.job_repository = job_repository
@@ -42,6 +48,7 @@ class JobService:
         self.chat_workflow = chat_workflow
         self.agent_edit_workflow = agent_edit_workflow
         self.regenerate_workflow = regenerate_workflow
+        self.finalize_workflow = finalize_workflow
 
     def create_draft_from_description(
         self, payload: CreateJobFromDescriptionRequest
@@ -120,6 +127,52 @@ class JobService:
             recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
         )
         return self._to_generated_content_response(response)
+
+    def finalize_draft(self, job_id: str, payload: JobFinalizeRequest) -> JobFinalizeResponse:
+        job = self._get_draft_job(job_id)
+        if self.finalize_workflow is None:
+            raise RuntimeError("Job finalize workflow is not configured.")
+
+        try:
+            response = self.finalize_workflow.run(
+                title=job.title,
+                summary=job.summary,
+                description_text=payload.description_text,
+                rubric_items=[item.model_dump(mode="json", exclude={"id"}) for item in payload.rubric_items],
+                structured_info_json=job.structured_info_json,
+                original_description_input=job.original_description_input,
+                original_form_input_json=job.original_form_input_json,
+            )
+            normalized_items = self._normalize_finalize_rubric_items(response.rubric_items)
+        except DomainValidationError:
+            raise
+        except Exception as exc:
+            raise DomainValidationError("Failed to finalize job.") from exc
+
+        rubric_items = [
+            JobRubricItemCreateData(**item.model_dump(mode="json"))
+            for item in normalized_items
+        ]
+
+        try:
+            self.job_repository.finalize_job(
+                self.session,
+                job,
+                title=response.title,
+                summary=response.summary,
+                description_text=response.description_text,
+                structured_info_json=response.structured_info_json.model_dump(mode="json"),
+                rubric_items=rubric_items,
+            )
+            self.session.commit()
+        except DomainValidationError:
+            self.session.rollback()
+            raise
+        except Exception as exc:
+            self.session.rollback()
+            raise DomainValidationError("Failed to finalize job.") from exc
+
+        return JobFinalizeResponse(job_id=job.id, lifecycle_status="active")
 
     def _persist_draft(
         self,
@@ -219,3 +272,37 @@ class JobService:
                 for item in response.rubric_items
             ],
         )
+
+    def _normalize_finalize_rubric_items(self, rubric_items):
+        weighted_items = [item for item in rubric_items if item.criterion_type == "weighted"]
+        hard_requirement_items = [
+            item for item in rubric_items if item.criterion_type == "hard_requirement"
+        ]
+
+        if weighted_items:
+            total_weight = sum(item.weight_input for item in weighted_items)
+            if total_weight <= 0:
+                raise DomainValidationError("Weighted rubric items must have a positive total weight.")
+
+            normalized_inputs = []
+            remainders = []
+
+            for index, item in enumerate(weighted_items):
+                normalized = item.weight_input / total_weight * 100
+                floored = floor(normalized)
+                normalized_inputs.append(floored)
+                remainders.append((normalized - floored, index))
+
+            remaining_points = 100 - sum(normalized_inputs)
+            for _, index in sorted(remainders, reverse=True)[:remaining_points]:
+                normalized_inputs[index] += 1
+
+            for item, normalized_input in zip(weighted_items, normalized_inputs, strict=True):
+                item.weight_input = float(normalized_input)
+                item.weight_normalized = round(normalized_input / 100, 4)
+        elif len(hard_requirement_items) != len(rubric_items):
+            raise DomainValidationError("Invalid rubric items for finalize.")
+        else:
+            raise DomainValidationError("Weighted rubric items must not total zero.")
+
+        return rubric_items

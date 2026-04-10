@@ -5,6 +5,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Providers } from "@/app/providers";
 import { JobEditWorkspace } from "@/components/job/edit/JobEditWorkspace";
 
+const pushMock = vi.fn();
+
+vi.mock("next/navigation", async () => {
+  const actual = await vi.importActual<typeof import("next/navigation")>("next/navigation");
+
+  return {
+    ...actual,
+    useRouter: () => ({
+      push: pushMock,
+    }),
+  };
+});
+
 function renderWithProviders(node: ReactElement) {
   return render(<Providers>{node}</Providers>);
 }
@@ -55,6 +68,7 @@ function makeEditPayload() {
 
 describe("Job edit workspace", () => {
   beforeEach(() => {
+    pushMock.mockReset();
     vi.stubGlobal("fetch", vi.fn());
   });
 
@@ -157,5 +171,68 @@ describe("Job edit workspace", () => {
       expect(screen.getByDisplayValue("Regenerated JD")).toBeInTheDocument();
     });
     expect(screen.getByText("已重新生成当前岗位定义。")).toBeInTheDocument();
+  });
+
+  it("finalizes the job and navigates back to jobs", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(mockJsonResponse(makeEditPayload()))
+      .mockResolvedValueOnce(mockJsonResponse({ job_id: "job-123", lifecycle_status: "active" }));
+
+    renderWithProviders(<JobEditWorkspace jobId="job-123" />);
+
+    await screen.findByDisplayValue("Initial JD body");
+    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/jobs/job-123/finalize",
+        expect.objectContaining({
+          method: "POST",
+        }),
+      );
+      expect(pushMock).toHaveBeenCalledWith("/jobs");
+    });
+  });
+
+  it("keeps local truth when finalize fails", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(mockJsonResponse(makeEditPayload()))
+      .mockResolvedValueOnce(mockJsonResponse({ message: "最终定稿失败" }, 422));
+
+    renderWithProviders(<JobEditWorkspace jobId="job-123" />);
+
+    const description = await screen.findByLabelText("职位描述编辑区");
+    fireEvent.change(description, {
+      target: { value: "Locally edited JD" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+
+    expect(await screen.findByText("最终定稿失败")).toBeInTheDocument();
+    expect(description).toHaveValue("Locally edited JD");
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes the draft on cancel and navigates back to jobs", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(mockJsonResponse(makeEditPayload()))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    renderWithProviders(<JobEditWorkspace jobId="job-123" />);
+
+    await screen.findByDisplayValue("Initial JD body");
+    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/jobs/job-123/draft",
+        expect.objectContaining({
+          method: "DELETE",
+        }),
+      );
+      expect(pushMock).toHaveBeenCalledWith("/jobs");
+    });
   });
 });

@@ -5,6 +5,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   agentEditJobDraft,
   chatJobDraft,
+  deleteJobDraft,
+  finalizeJobDraft,
   getJobEdit,
   regenerateJobDraft,
 } from "@/lib/api/jobs";
@@ -12,6 +14,8 @@ import type {
   JobChatRequestDto,
   JobChatResponseDto,
   JobEditResponseDto,
+  JobFinalizeRequestDto,
+  JobFinalizeResponseDto,
   JobGeneratedContentRequestDto,
   JobGeneratedContentResponseDto,
   JobRegenerateRequestDto,
@@ -40,5 +44,17 @@ export function useJobAgentEditMutation(jobId: string) {
 export function useJobRegenerateMutation(jobId: string) {
   return useMutation<JobGeneratedContentResponseDto, Error, JobRegenerateRequestDto>({
     mutationFn: (payload) => regenerateJobDraft(jobId, payload),
+  });
+}
+
+export function useJobFinalizeMutation(jobId: string) {
+  return useMutation<JobFinalizeResponseDto, Error, JobFinalizeRequestDto>({
+    mutationFn: (payload) => finalizeJobDraft(jobId, payload),
+  });
+}
+
+export function useDeleteJobDraftMutation(jobId: string) {
+  return useMutation<void, Error, void>({
+    mutationFn: () => deleteJobDraft(jobId),
   });
 }

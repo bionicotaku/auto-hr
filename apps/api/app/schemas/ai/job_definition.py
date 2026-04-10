@@ -55,6 +55,14 @@ class JobAgentEditResponseSchema(BaseModel):
     rubric_items: list[JobRubricItemSchema] = Field(min_length=1, max_length=12)
 
 
+class JobFinalizeResponseSchema(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    summary: str = Field(min_length=1, max_length=2000)
+    description_text: str = Field(min_length=1, max_length=12000)
+    structured_info_json: JobStructuredInfoSchema
+    rubric_items: list[JobRubricItemSchema] = Field(min_length=1, max_length=12)
+
+
 def rubric_items_to_json(items: list[JobRubricItemSchema | dict[str, Any]]) -> list[dict[str, Any]]:
     serialized: list[dict[str, Any]] = []
     for item in items:

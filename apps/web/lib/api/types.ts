@@ -93,3 +93,13 @@ export type JobRegenerateRequestDto = {
   recent_messages: JobEditorMessageDto[];
   history_summary: string | null;
 };
+
+export type JobFinalizeRequestDto = {
+  description_text: string;
+  rubric_items: JobRubricItemDto[];
+};
+
+export type JobFinalizeResponseDto = {
+  job_id: string;
+  lifecycle_status: "active";
+};
