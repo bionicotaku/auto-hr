@@ -171,6 +171,13 @@ class JobFinalizeResponse(BaseModel):
     lifecycle_status: Literal["active"]
 
 
+class JobCandidateImportContextResponse(BaseModel):
+    job_id: str
+    title: str
+    summary: str
+    lifecycle_status: Literal["draft", "active"]
+
+
 class JobEditResponse(BaseModel):
     id: str
     lifecycle_status: Literal["draft", "active"]

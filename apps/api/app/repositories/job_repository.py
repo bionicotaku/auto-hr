@@ -90,6 +90,13 @@ class JobRepository:
             raise LookupError(job_id)
         return job
 
+    def get_job(self, session: Session, job_id: str) -> Job:
+        statement = select(Job).where(Job.id == job_id)
+        job = session.scalar(statement)
+        if job is None:
+            raise LookupError(job_id)
+        return job
+
     def list_jobs(self, session: Session) -> list[Job]:
         statement = select(Job).order_by(Job.updated_at.desc())
         return list(session.scalars(statement).all())

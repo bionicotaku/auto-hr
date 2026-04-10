@@ -277,3 +277,31 @@ def test_finalize_endpoint_returns_active_job_id(client, monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["job_id"] == job_id
     assert response.json()["lifecycle_status"] == "active"
+
+
+def test_candidate_import_context_endpoint_returns_job_context(client, monkeypatch) -> None:
+    monkeypatch.setattr(service_deps, "get_job_service", override_job_service)
+
+    create_response = client.post(
+        "/api/jobs/from-description",
+        json={"description_text": "A long enough original job description for testing."},
+    )
+    job_id = create_response.json()["job_id"]
+
+    response = client.get(f"/api/jobs/{job_id}/candidate-import-context")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "job_id": job_id,
+        "title": "AI Recruiting Lead",
+        "summary": "Build the recruiting engine.",
+        "lifecycle_status": "draft",
+    }
+
+
+def test_candidate_import_context_endpoint_returns_not_found(client, monkeypatch) -> None:
+    monkeypatch.setattr(service_deps, "get_job_service", override_job_service)
+
+    response = client.get("/api/jobs/missing-job/candidate-import-context")
+
+    assert response.status_code == 404

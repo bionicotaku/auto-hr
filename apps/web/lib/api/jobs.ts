@@ -5,6 +5,7 @@ import type {
   CreateJobFromFormRequestDto,
   JobChatRequestDto,
   JobChatResponseDto,
+  JobCandidateImportContextDto,
   JobEditResponseDto,
   JobFinalizeRequestDto,
   JobFinalizeResponseDto,
@@ -65,6 +66,10 @@ export async function createJobFromForm(payload: CreateJobFromFormRequestDto): P
 
 export function getJobEdit(jobId: string): Promise<JobEditResponseDto> {
   return apiRequest<JobEditResponseDto>(`/api/jobs/${jobId}/edit`);
+}
+
+export function getJobCandidateImportContext(jobId: string): Promise<JobCandidateImportContextDto> {
+  return apiRequest<JobCandidateImportContextDto>(`/api/jobs/${jobId}/candidate-import-context`);
 }
 
 export function chatJobDraft(jobId: string, payload: JobChatRequestDto): Promise<JobChatResponseDto> {

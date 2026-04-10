@@ -7,6 +7,7 @@ from app.schemas.jobs import (
     CreateJobFromDescriptionRequest,
     CreateJobFromFormRequest,
     JobAgentEditRequest,
+    JobCandidateImportContextResponse,
     JobChatRequest,
     JobChatResponse,
     JobEditResponse,
@@ -43,6 +44,16 @@ def create_job_from_form(
 def get_job_edit(job_id: str, session: DbSession, settings: AppSettings) -> JobEditResponse:
     service = service_deps.get_job_service(session, settings)
     return service.get_job_edit_payload(job_id)
+
+
+@router.get("/{job_id}/candidate-import-context", response_model=JobCandidateImportContextResponse)
+def get_job_candidate_import_context(
+    job_id: str,
+    session: DbSession,
+    settings: AppSettings,
+) -> JobCandidateImportContextResponse:
+    service = service_deps.get_job_service(session, settings)
+    return service.get_candidate_import_context(job_id)
 
 
 @router.post("/{job_id}/chat", response_model=JobChatResponse)

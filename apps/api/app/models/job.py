@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 
 if TYPE_CHECKING:
+    from app.models.candidate import Candidate
     from app.models.job_rubric_item import JobRubricItem
 
 
@@ -51,4 +52,9 @@ class Job(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="JobRubricItem.sort_order",
+    )
+    candidates: Mapped[list["Candidate"]] = relationship(
+        back_populates="job",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )

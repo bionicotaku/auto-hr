@@ -20,6 +20,7 @@ from app.schemas.jobs import (
     CreateJobFromFormRequest,
     CreateJobDraftResponse,
     JobAgentEditRequest,
+    JobCandidateImportContextResponse,
     JobChatRequest,
     JobChatResponse,
     JobEditResponse,
@@ -79,6 +80,19 @@ class JobService:
             raise NotFoundError(f"Job {job_id} not found.") from exc
 
         return self._to_job_edit_response(job)
+
+    def get_candidate_import_context(self, job_id: str) -> JobCandidateImportContextResponse:
+        try:
+            job = self.job_repository.get_job(self.session, job_id)
+        except LookupError as exc:
+            raise NotFoundError(f"Job {job_id} not found.") from exc
+
+        return JobCandidateImportContextResponse(
+            job_id=job.id,
+            title=job.title,
+            summary=job.summary,
+            lifecycle_status=job.lifecycle_status,
+        )
 
     def delete_draft_job(self, job_id: str) -> None:
         with self.session.begin():

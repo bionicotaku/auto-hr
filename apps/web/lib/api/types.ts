@@ -103,3 +103,10 @@ export type JobFinalizeResponseDto = {
   job_id: string;
   lifecycle_status: "active";
 };
+
+export type JobCandidateImportContextDto = {
+  job_id: string;
+  title: string;
+  summary: string;
+  lifecycle_status: "draft" | "active";
+};

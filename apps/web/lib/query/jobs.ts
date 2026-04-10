@@ -7,12 +7,14 @@ import {
   chatJobDraft,
   deleteJobDraft,
   finalizeJobDraft,
+  getJobCandidateImportContext,
   getJobEdit,
   regenerateJobDraft,
 } from "@/lib/api/jobs";
 import type {
   JobChatRequestDto,
   JobChatResponseDto,
+  JobCandidateImportContextDto,
   JobEditResponseDto,
   JobFinalizeRequestDto,
   JobFinalizeResponseDto,
@@ -25,6 +27,14 @@ export function useJobEditQuery(jobId: string) {
   return useQuery<JobEditResponseDto>({
     queryKey: ["job-edit", jobId],
     queryFn: () => getJobEdit(jobId),
+    enabled: Boolean(jobId),
+  });
+}
+
+export function useJobCandidateImportContextQuery(jobId: string) {
+  return useQuery<JobCandidateImportContextDto>({
+    queryKey: ["job-candidate-import-context", jobId],
+    queryFn: () => getJobCandidateImportContext(jobId),
     enabled: Boolean(jobId),
   });
 }
