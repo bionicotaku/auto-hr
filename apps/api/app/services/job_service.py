@@ -13,7 +13,8 @@ from app.schemas.ai.job_definition import (
     JobAgentEditResponseSchema,
     JobChatResponseSchema,
     JobDraftSchema,
-    JobFinalizeResponseSchema,
+    JobFinalizeScoringResponseSchema,
+    rubric_items_to_json,
 )
 from app.schemas.jobs import (
     CreateJobFromDescriptionRequest,
@@ -54,7 +55,10 @@ class JobService:
     def create_draft_from_description(
         self, payload: CreateJobFromDescriptionRequest
     ) -> CreateJobDraftResponse:
-        draft = self.draft_workflow.from_description(payload.description_text)
+        try:
+            draft = self.draft_workflow.from_description(payload.description_text)
+        except ValueError as exc:
+            raise DomainValidationError(str(exc)) from exc
         job = self._persist_draft(
             creation_mode="from_description",
             draft=draft,
@@ -64,7 +68,10 @@ class JobService:
         return CreateJobDraftResponse(job_id=job.id, lifecycle_status="draft")
 
     def create_draft_from_form(self, payload: CreateJobFromFormRequest) -> CreateJobDraftResponse:
-        draft = self.draft_workflow.from_form(payload.model_dump(mode="json"))
+        try:
+            draft = self.draft_workflow.from_form(payload.model_dump(mode="json"))
+        except ValueError as exc:
+            raise DomainValidationError(str(exc)) from exc
         job = self._persist_draft(
             creation_mode="from_form",
             draft=draft,
@@ -101,70 +108,77 @@ class JobService:
                 raise NotFoundError(f"Draft job {job_id} not found.")
 
     def chat_on_draft(self, job_id: str, payload: JobChatRequest) -> JobChatResponse:
-        job = self._get_draft_job(job_id)
+        self._get_draft_job(job_id)
         if self.chat_workflow is None:
-            raise RuntimeError("Job chat workflow is not configured.")
+            raise DomainValidationError("Job chat workflow is not configured.")
 
-        response = self.chat_workflow.run(
-            description_text=payload.description_text,
-            rubric_items=[item.model_dump(mode="json", exclude={"id"}) for item in payload.rubric_items],
-            recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
-            user_input=payload.user_input,
-        )
+        try:
+            response = self.chat_workflow.run(
+                description_text=payload.description_text,
+                rubric_items=[item.model_dump(mode="json", exclude={"id"}) for item in payload.rubric_items],
+                recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
+                user_input=payload.user_input,
+            )
+        except ValueError as exc:
+            raise DomainValidationError(str(exc)) from exc
         return JobChatResponse(reply_text=response.reply_text)
 
     def agent_edit_draft(self, job_id: str, payload: JobAgentEditRequest) -> JobGeneratedContentResponse:
-        job = self._get_draft_job(job_id)
+        self._get_draft_job(job_id)
         if self.agent_edit_workflow is None:
-            raise RuntimeError("Job agent edit workflow is not configured.")
+            raise DomainValidationError("Job agent edit workflow is not configured.")
 
-        response = self.agent_edit_workflow.run(
-            description_text=payload.description_text,
-            rubric_items=[item.model_dump(mode="json", exclude={"id"}) for item in payload.rubric_items],
-            recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
-            user_input=payload.user_input,
-        )
+        try:
+            response = self.agent_edit_workflow.run(
+                description_text=payload.description_text,
+                rubric_items=[item.model_dump(mode="json", exclude={"id"}) for item in payload.rubric_items],
+                recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
+                user_input=payload.user_input,
+            )
+        except ValueError as exc:
+            raise DomainValidationError(str(exc)) from exc
         return self._to_generated_content_response(response)
 
     def regenerate_draft(self, job_id: str, payload: JobRegenerateRequest) -> JobGeneratedContentResponse:
         job = self._get_draft_job(job_id)
         if self.regenerate_workflow is None:
-            raise RuntimeError("Job regenerate workflow is not configured.")
+            raise DomainValidationError("Job regenerate workflow is not configured.")
 
-        response = self.regenerate_workflow.run(
-            original_description_input=job.original_description_input,
-            original_form_input_json=job.original_form_input_json,
-            title=job.title,
-            summary=job.summary,
-            structured_info_json=job.structured_info_json,
-            history_summary=payload.history_summary,
-            recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
-        )
+        try:
+            response = self.regenerate_workflow.run(
+                original_description_input=job.original_description_input,
+                original_form_input_json=job.original_form_input_json,
+                title=job.title,
+                summary=job.summary,
+                structured_info_json=job.structured_info_json,
+                history_summary=payload.history_summary,
+                recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
+            )
+        except ValueError as exc:
+            raise DomainValidationError(str(exc)) from exc
         return self._to_generated_content_response(response)
 
     def finalize_draft(self, job_id: str, payload: JobFinalizeRequest) -> JobFinalizeResponse:
         job = self._get_draft_job(job_id)
         if self.finalize_workflow is None:
-            raise RuntimeError("Job finalize workflow is not configured.")
+            raise DomainValidationError("Job finalize workflow is not configured.")
 
         try:
             response = self.finalize_workflow.run(
-                title=job.title,
-                summary=job.summary,
                 description_text=payload.description_text,
                 rubric_items=[item.model_dump(mode="json", exclude={"id"}) for item in payload.rubric_items],
-                structured_info_json=job.structured_info_json,
-                original_description_input=job.original_description_input,
-                original_form_input_json=job.original_form_input_json,
             )
-            normalized_items = self._normalize_finalize_rubric_items(response.rubric_items)
+            merged_items = self._merge_finalize_scoring(payload.rubric_items, response)
+            normalized_items = self._normalize_finalize_rubric_items(merged_items)
         except DomainValidationError:
             raise
+        except ValueError as exc:
+            raise DomainValidationError(str(exc)) from exc
         except Exception as exc:
             raise DomainValidationError("Failed to finalize job.") from exc
 
         rubric_items = [
-            JobRubricItemCreateData(**item.model_dump(mode="json"))
+            JobRubricItemCreateData(**item.model_dump(mode="json", exclude={"id"}))
             for item in normalized_items
         ]
 
@@ -172,16 +186,19 @@ class JobService:
             self.job_repository.finalize_job(
                 self.session,
                 job,
-                title=response.title,
-                summary=response.summary,
-                description_text=response.description_text,
-                structured_info_json=response.structured_info_json.model_dump(mode="json"),
+                title=job.title,
+                summary=job.summary,
+                description_text=payload.description_text,
+                structured_info_json=job.structured_info_json,
                 rubric_items=rubric_items,
             )
             self.session.commit()
         except DomainValidationError:
             self.session.rollback()
             raise
+        except ValueError as exc:
+            self.session.rollback()
+            raise DomainValidationError(str(exc)) from exc
         except Exception as exc:
             self.session.rollback()
             raise DomainValidationError("Failed to finalize job.") from exc
@@ -208,10 +225,8 @@ class JobService:
             editor_history_summary=None,
             editor_recent_messages_json=[],
         )
-        rubric_items = [
-            JobRubricItemCreateData(**item.model_dump(mode="json"))
-            for item in draft.rubric_items
-        ]
+        normalized_rubric_items = self._normalize_generated_rubric_items(draft.rubric_items)
+        rubric_items = [JobRubricItemCreateData(**item) for item in normalized_rubric_items]
 
         try:
             with self.session.begin():
@@ -220,6 +235,10 @@ class JobService:
                     job_data=job_data,
                     rubric_items=rubric_items,
                 )
+        except DomainValidationError:
+            raise
+        except ValueError as exc:
+            raise DomainValidationError(str(exc)) from exc
         except Exception as exc:
             raise DomainValidationError("Failed to create job draft.") from exc
 
@@ -271,21 +290,67 @@ class JobService:
     ) -> JobGeneratedContentResponse:
         return JobGeneratedContentResponse(
             description_text=response.description_text,
-            rubric_items=[
-                {
-                    "sort_order": item.sort_order,
-                    "name": item.name,
-                    "description": item.description,
-                    "criterion_type": item.criterion_type,
-                    "weight_input": item.weight_input,
-                    "weight_normalized": item.weight_normalized,
-                    "scoring_standard_json": item.scoring_standard_json,
-                    "agent_prompt_text": item.agent_prompt_text,
-                    "evidence_guidance_text": item.evidence_guidance_text,
-                }
-                for item in response.rubric_items
-            ],
+            rubric_items=self._normalize_generated_rubric_items(response.rubric_items),
         )
+
+    def _normalize_generated_rubric_items(self, rubric_items) -> list[dict]:
+        serialized_items = rubric_items_to_json(rubric_items)
+        weighted_items = [item for item in serialized_items if item["criterion_type"] == "weighted"]
+        hard_requirement_items = [
+            item for item in serialized_items if item["criterion_type"] == "hard_requirement"
+        ]
+
+        if not weighted_items:
+            raise DomainValidationError("Generated rubric items must include at least one weighted item.")
+
+        total_weight = sum(item["weight_input"] for item in weighted_items)
+        if total_weight <= 0:
+            raise DomainValidationError("Weighted rubric items must have a positive total weight.")
+
+        for item in weighted_items:
+            item["weight_normalized"] = round(item["weight_input"] / total_weight, 4)
+
+        for item in hard_requirement_items:
+            item["weight_normalized"] = None
+
+        if len(weighted_items) + len(hard_requirement_items) != len(serialized_items):
+            raise DomainValidationError("Invalid rubric items generated by LLM.")
+
+        return serialized_items
+
+    def _merge_finalize_scoring(
+        self,
+        rubric_items,
+        scoring_response: JobFinalizeScoringResponseSchema,
+    ):
+        scoring_by_sort_order = {
+            item.sort_order: {
+                "scoring_standard_json": item.scoring_standard_json,
+                "agent_prompt_text": item.agent_prompt_text,
+                "evidence_guidance_text": item.evidence_guidance_text,
+            }
+            for item in scoring_response.rubric_items
+        }
+
+        if len(scoring_by_sort_order) != len(scoring_response.rubric_items):
+            raise DomainValidationError("Finalize scoring contains duplicate rubric sort_order values.")
+
+        merged_items = []
+        for item in rubric_items:
+            enrichment = scoring_by_sort_order.get(item.sort_order)
+            if enrichment is None:
+                raise DomainValidationError(
+                    f"Finalize scoring is missing rubric item {item.sort_order}."
+                )
+
+            merged_items.append(
+                item.model_copy(update=enrichment)
+            )
+
+        if len(merged_items) != len(scoring_response.rubric_items):
+            raise DomainValidationError("Finalize scoring returned unexpected rubric items.")
+
+        return merged_items
 
     def _normalize_finalize_rubric_items(self, rubric_items):
         weighted_items = [item for item in rubric_items if item.criterion_type == "weighted"]

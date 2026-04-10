@@ -55,9 +55,13 @@ describe("Job creation pages", () => {
 
     renderWithProviders(<JobNewFromDescriptionPage />);
 
+    expect(screen.getByRole("button", { name: "生成岗位初稿" })).toBeDisabled();
+
     fireEvent.change(screen.getByLabelText("职位描述"), {
       target: { value: "Senior frontend engineer needed." },
     });
+
+    expect(screen.getByRole("button", { name: "生成岗位初稿" })).not.toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "生成岗位初稿" }));
 
     await waitFor(() => {
@@ -89,11 +93,26 @@ describe("Job creation pages", () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 
+  it("returns to the job creation entry page from the description flow", () => {
+    renderWithProviders(<JobNewFromDescriptionPage />);
+
+    const backButtons = screen.getAllByRole("button", { name: "返回" });
+    expect(backButtons).toHaveLength(2);
+
+    fireEvent.click(backButtons[0]);
+    fireEvent.click(backButtons[1]);
+
+    expect(pushMock).toHaveBeenNthCalledWith(1, "/jobs/new");
+    expect(pushMock).toHaveBeenNthCalledWith(2, "/jobs/new");
+  });
+
   it("submits the form flow and navigates to the edit page on success", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValueOnce(mockJsonResponse({ id: "job-456" }));
 
     renderWithProviders(<JobNewFromFormPage />);
+
+    expect(screen.getByRole("button", { name: "生成岗位初稿" })).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText("岗位名称"), {
       target: { value: "Senior Frontend Engineer" },
@@ -107,6 +126,8 @@ describe("Job creation pages", () => {
     fireEvent.change(screen.getByLabelText("资历要求"), {
       target: { value: "Senior" },
     });
+
+    expect(screen.getByRole("button", { name: "生成岗位初稿" })).not.toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "生成岗位初稿" }));
 
     await waitFor(() => {
@@ -144,5 +165,18 @@ describe("Job creation pages", () => {
     expect(await screen.findByText("表单校验失败")).toBeInTheDocument();
     expect(titleInput).toHaveValue("Senior Frontend Engineer");
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("returns to the job creation entry page from the form flow", () => {
+    renderWithProviders(<JobNewFromFormPage />);
+
+    const backButtons = screen.getAllByRole("button", { name: "返回" });
+    expect(backButtons).toHaveLength(2);
+
+    fireEvent.click(backButtons[0]);
+    fireEvent.click(backButtons[1]);
+
+    expect(pushMock).toHaveBeenNthCalledWith(1, "/jobs/new");
+    expect(pushMock).toHaveBeenNthCalledWith(2, "/jobs/new");
   });
 });

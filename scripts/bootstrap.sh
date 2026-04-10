@@ -12,6 +12,9 @@ if [ ! -d ".venv" ]; then
   python3 -m venv .venv
 fi
 
+echo "[bootstrap] installing backend dependencies into ./.venv"
+./.venv/bin/pip install -e "apps/api[dev]"
+
 mkdir -p \
   data/uploads/jobs \
   data/uploads/candidates \
@@ -25,6 +28,9 @@ if [ -f "apps/web/package.json" ]; then
   echo "[bootstrap] installing workspace node dependencies"
   pnpm install
 fi
+
+./scripts/sync-web-env.sh
+./scripts/migrate-api.sh
 
 echo "[bootstrap] workspace skeleton is ready"
 echo "[bootstrap] python runtime: ./.venv/bin/python"

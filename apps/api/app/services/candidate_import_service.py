@@ -38,5 +38,7 @@ class CandidateImportService:
             )
         except (NotFoundError, ConflictError, DomainValidationError):
             raise
+        except ValueError as exc:
+            raise DomainValidationError(str(exc)) from exc
         except Exception as exc:
             raise DomainValidationError("Failed to import candidate.") from exc

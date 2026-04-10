@@ -7,6 +7,9 @@ if [ ! -x "./.venv/bin/python" ]; then
   exit 1
 fi
 
+source ./scripts/load-root-env.sh
+./scripts/sync-web-env.sh
+
 echo "[lint] running backend syntax checks"
 ./.venv/bin/python -m compileall apps/api/app apps/api/tests
 

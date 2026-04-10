@@ -5,7 +5,7 @@ from app.schemas.ai.job_definition import (
     JobAgentEditResponseSchema,
     JobChatResponseSchema,
     JobDraftSchema,
-    JobFinalizeResponseSchema,
+    JobFinalizeScoringResponseSchema,
 )
 from app.schemas.jobs import CandidateImportResponse
 from app.services.job_service import JobService
@@ -40,10 +40,6 @@ class StubWorkflow:
                         "description": "Runs hiring funnel",
                         "criterion_type": "weighted",
                         "weight_input": 80,
-                        "weight_normalized": 0.8,
-                        "scoring_standard_json": {"score_5": "Excellent"},
-                        "agent_prompt_text": "Judge execution",
-                        "evidence_guidance_text": "Look for examples",
                     }
                 ],
             }
@@ -73,28 +69,11 @@ class StubRegenerateWorkflow:
 
 class StubFinalizeWorkflow:
     def run(self, **_kwargs):
-        return JobFinalizeResponseSchema.model_validate(
+        return JobFinalizeScoringResponseSchema.model_validate(
             {
-                "title": "Final Recruiting Lead",
-                "summary": "Final summary",
-                "description_text": "Final JD body",
-                "structured_info_json": {
-                    "department": "Talent",
-                    "location": "Remote",
-                    "employment_type": "Full-time",
-                    "seniority_level": "Lead",
-                    "responsibilities": ["Run hiring"],
-                    "requirements": ["Experience"],
-                    "skills": ["Leadership"],
-                },
                 "rubric_items": [
                     {
                         "sort_order": 1,
-                        "name": "Execution",
-                        "description": "Runs hiring funnel",
-                        "criterion_type": "weighted",
-                        "weight_input": 80,
-                        "weight_normalized": 0.8,
                         "scoring_standard_json": {"score_5": "Excellent"},
                         "agent_prompt_text": "Judge execution",
                         "evidence_guidance_text": "Look for examples",
@@ -114,6 +93,61 @@ class StubCandidateImportService:
         return CandidateImportResponse(candidate_id="candidate-001", job_id="job-001")
 
 
+class StubJobQueryService:
+    def list_jobs(self):
+        return {
+            "items": [
+                {
+                    "job_id": "job-001",
+                    "title": "AI Recruiting Lead",
+                    "summary": "Build the recruiting engine.",
+                    "lifecycle_status": "active",
+                    "candidate_count": 2,
+                    "updated_at": "2026-04-09T00:00:00Z",
+                }
+            ]
+        }
+
+    def get_job_detail(self, job_id: str):
+        return {
+            "job_id": job_id,
+            "title": "AI Recruiting Lead",
+            "summary": "Build the recruiting engine.",
+            "description_text": "JD body",
+            "lifecycle_status": "active",
+            "candidate_count": 2,
+            "rubric_summary": [
+                {
+                    "name": "Execution",
+                    "criterion_type": "weighted",
+                    "weight_label": "80%",
+                }
+            ],
+            "structured_info_summary": [
+                {
+                    "label": "地点",
+                    "value": "Remote",
+                }
+            ],
+        }
+
+    def list_job_candidates(self, **_kwargs):
+        return {
+            "items": [
+                {
+                    "candidate_id": "candidate-001",
+                    "full_name": "Ada Lovelace",
+                    "ai_summary": "Strong operator",
+                    "overall_score_percent": 92.0,
+                    "current_status": "pending",
+                    "tags": ["高匹配"],
+                    "created_at": "2026-04-09T00:00:00Z",
+                }
+            ],
+            "available_tags": ["高匹配", "需要复核"],
+        }
+
+
 def override_job_service(session, _settings):
     return JobService(
         session,
@@ -130,6 +164,10 @@ def override_candidate_import_service(_session, _settings):
     return StubCandidateImportService()
 
 
+def override_job_query_service(_session, _settings):
+    return StubJobQueryService()
+
+
 def test_create_job_from_description_returns_job_id(client, monkeypatch) -> None:
     monkeypatch.setattr(service_deps, "get_job_service", override_job_service)
 
@@ -143,6 +181,18 @@ def test_create_job_from_description_returns_job_id(client, monkeypatch) -> None
     assert response.json()["lifecycle_status"] == "draft"
 
 
+def test_create_job_from_description_accepts_short_non_empty_input(client, monkeypatch) -> None:
+    monkeypatch.setattr(service_deps, "get_job_service", override_job_service)
+
+    response = client.post(
+        "/api/jobs/from-description",
+        json={"description_text": "短描述"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["job_id"]
+
+
 def test_create_job_from_form_validates_input(client, monkeypatch) -> None:
     monkeypatch.setattr(service_deps, "get_job_service", override_job_service)
 
@@ -153,6 +203,7 @@ def test_create_job_from_form_validates_input(client, monkeypatch) -> None:
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "invalid_request"
+    assert response.json()["error"]["message"] == "job_title: Value error, job_title must not be empty."
 
 
 def test_delete_job_draft_returns_no_content(client, monkeypatch) -> None:
@@ -259,6 +310,7 @@ def test_regenerate_endpoint_rejects_extra_fields(client, monkeypatch) -> None:
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "invalid_request"
+    assert "description_text" in response.json()["error"]["message"]
 
 
 def test_finalize_endpoint_returns_active_job_id(client, monkeypatch) -> None:
@@ -366,3 +418,32 @@ def test_candidate_import_endpoint_returns_validation_error(client, monkeypatch)
 
     assert response.status_code == 422
     assert response.json()["error"]["message"] == "Candidate import requires text input or at least one PDF."
+
+
+def test_jobs_list_endpoint_returns_items(client, monkeypatch) -> None:
+    monkeypatch.setattr(service_deps, "get_job_query_service", override_job_query_service)
+
+    response = client.get("/api/jobs")
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["job_id"] == "job-001"
+
+
+def test_job_detail_endpoint_returns_summary(client, monkeypatch) -> None:
+    monkeypatch.setattr(service_deps, "get_job_query_service", override_job_query_service)
+
+    response = client.get("/api/jobs/job-001")
+
+    assert response.status_code == 200
+    assert response.json()["candidate_count"] == 2
+    assert response.json()["rubric_summary"][0]["name"] == "Execution"
+
+
+def test_job_candidates_endpoint_returns_filtered_list_payload(client, monkeypatch) -> None:
+    monkeypatch.setattr(service_deps, "get_job_query_service", override_job_query_service)
+
+    response = client.get("/api/jobs/job-001/candidates", params={"sort": "score_desc", "status": "all"})
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["candidate_id"] == "candidate-001"
+    assert response.json()["available_tags"] == ["高匹配", "需要复核"]

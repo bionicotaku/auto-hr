@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+from fastapi.encoders import jsonable_encoder
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -43,6 +44,24 @@ def _error_payload(code: str, message: str, details: dict[str, Any] | None = Non
     }
 
 
+def _humanize_validation_error(exc: RequestValidationError) -> str:
+    errors = exc.errors()
+    if not errors:
+        return "Request validation failed."
+
+    first_error = errors[0]
+    raw_loc = first_error.get("loc", ())
+    if isinstance(raw_loc, (list, tuple)):
+        field_path = ".".join(str(part) for part in raw_loc if part != "body")
+    else:
+        field_path = str(raw_loc)
+
+    message = str(first_error.get("msg", "Request validation failed."))
+    if field_path:
+        return f"{field_path}: {message}"
+    return message
+
+
 async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
@@ -51,12 +70,13 @@ async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
 
 
 async def handle_request_validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+    serialized_errors = jsonable_encoder(exc.errors())
     return JSONResponse(
         status_code=422,
         content=_error_payload(
             "invalid_request",
-            "Request validation failed.",
-            {"errors": exc.errors()},
+            _humanize_validation_error(exc),
+            {"errors": serialized_errors},
         ),
     )
 

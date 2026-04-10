@@ -3,7 +3,7 @@ import pytest
 from app.schemas.ai.job_definition import (
     JobAgentEditResponseSchema,
     JobChatResponseSchema,
-    JobFinalizeResponseSchema,
+    JobFinalizeScoringResponseSchema,
 )
 from app.workflows.job_definition.agent_edit import JobDefinitionAgentEditWorkflow
 from app.workflows.job_definition.chat import JobDefinitionChatWorkflow
@@ -29,10 +29,20 @@ def valid_rubric_items() -> list[dict]:
             "description": "Can lead hiring",
             "criterion_type": "weighted",
             "weight_input": 70,
-            "weight_normalized": 0.7,
-            "scoring_standard_json": {"score_5": "Excellent"},
-            "agent_prompt_text": "Judge execution",
-            "evidence_guidance_text": "Look for shipped outcomes",
+        }
+    ]
+
+
+def valid_finalize_scoring_items() -> list[dict]:
+    return [
+        {
+            "sort_order": 1,
+            "scoring_standard_json": [
+                {"key": "score_5", "value": "Excellent"},
+                {"key": "score_3", "value": "Acceptable"},
+            ],
+            "agent_prompt_text": "Judge execution in real project work.",
+            "evidence_guidance_text": "Look for shipped outcomes and concrete ownership.",
         }
     ]
 
@@ -61,12 +71,8 @@ def test_agent_edit_workflow_rejects_invalid_schema() -> None:
                     "sort_order": 1,
                     "name": "Execution",
                     "description": "Updated",
-                    "criterion_type": "weighted",
+                    "criterion_type": "hard_requirement",
                     "weight_input": 70,
-                    "weight_normalized": None,
-                    "scoring_standard_json": {"score_5": "Excellent"},
-                    "agent_prompt_text": "Judge execution",
-                    "evidence_guidance_text": "Look for shipped outcomes",
                 }
             ],
         }
@@ -106,37 +112,25 @@ def test_regenerate_workflow_uses_original_inputs_only() -> None:
     assert "ORIGINAL_DESCRIPTION_SOURCE" in prompt
     assert "job_title" in prompt
     assert "当前编辑区版本不会提供" in prompt
+    assert response.rubric_items[0].name == "Execution"
 
 
 def test_finalize_workflow_returns_valid_schema() -> None:
     client = FakeClient(
         {
-            "title": "Final Recruiter",
-            "summary": "Final summary",
-            "description_text": "Final JD",
-            "structured_info_json": {
-                "department": "Talent",
-                "location": "Remote",
-                "employment_type": "Full-time",
-                "seniority_level": "Lead",
-                "responsibilities": ["Lead hiring"],
-                "requirements": ["Hiring experience"],
-                "skills": ["Communication"],
-            },
-            "rubric_items": valid_rubric_items(),
+            "rubric_items": valid_finalize_scoring_items(),
         }
     )
     workflow = JobDefinitionFinalizeWorkflow(client)
 
     response = workflow.run(
-        title="Draft title",
-        summary="Draft summary",
         description_text="Current JD",
         rubric_items=valid_rubric_items(),
-        structured_info_json={"department": "Talent"},
-        original_description_input="Original raw description",
-        original_form_input_json=None,
     )
 
-    assert isinstance(response, JobFinalizeResponseSchema)
-    assert response.title == "Final Recruiter"
+    assert isinstance(response, JobFinalizeScoringResponseSchema)
+    assert response.rubric_items[0].sort_order == 1
+    assert response.rubric_items[0].agent_prompt_text == "Judge execution in real project work."
+    prompt = client.calls[0]["prompt"]
+    assert "Current JD" in prompt
+    assert "不要参考任何原始输入" in prompt

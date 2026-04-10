@@ -7,8 +7,10 @@ from app.workflows.job_definition.create_draft import JobDefinitionCreateDraftWo
 class FakeClient:
     def __init__(self, payload):
         self.payload = payload
+        self.calls: list[dict] = []
 
-    def generate_structured_output(self, **_kwargs):
+    def generate_structured_output(self, **kwargs):
+        self.calls.append(kwargs)
         return self.payload
 
 
@@ -33,26 +35,28 @@ def valid_payload() -> dict:
                 "description": "Can handle end-to-end hiring",
                 "criterion_type": "weighted",
                 "weight_input": 70,
-                "weight_normalized": 0.7,
-                "scoring_standard_json": {"score_5": "Excellent"},
-                "agent_prompt_text": "Judge depth",
-                "evidence_guidance_text": "Look for ownership",
             }
         ],
     }
 
 
 def test_create_draft_workflow_returns_valid_schema() -> None:
-    workflow = JobDefinitionCreateDraftWorkflow(FakeClient(valid_payload()))
+    client = FakeClient(valid_payload())
+    workflow = JobDefinitionCreateDraftWorkflow(client)
     draft = workflow.from_description("Example description")
 
     assert isinstance(draft, JobDraftSchema)
     assert draft.title == "Staff AI Recruiter"
+    assert "weight_normalized" not in client.calls[0]["schema"]["$defs"]["JobRubricItemDraftSchema"]["properties"]
+    assert "scoring_standard_json" not in client.calls[0]["schema"]["$defs"]["JobRubricItemDraftSchema"]["properties"]
+    assert "agent_prompt_text" not in client.calls[0]["schema"]["$defs"]["JobRubricItemDraftSchema"]["properties"]
+    assert "evidence_guidance_text" not in client.calls[0]["schema"]["$defs"]["JobRubricItemDraftSchema"]["properties"]
 
 
 def test_create_draft_workflow_rejects_invalid_schema() -> None:
     invalid = valid_payload()
-    invalid["rubric_items"][0]["weight_normalized"] = None
+    invalid["rubric_items"][0]["criterion_type"] = "hard_requirement"
+    invalid["rubric_items"][0]["weight_input"] = 70
 
     workflow = JobDefinitionCreateDraftWorkflow(FakeClient(invalid))
 

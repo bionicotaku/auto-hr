@@ -7,5 +7,11 @@ if [ ! -x "./.venv/bin/python" ]; then
   exit 1
 fi
 
+source ./scripts/load-root-env.sh
+
+API_PORT="${API_PORT:-8000}"
+./scripts/check-port.sh "$API_PORT" "dev-api"
+./scripts/migrate-api.sh
+
 cd apps/api
-../../.venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+../../.venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port "$API_PORT"

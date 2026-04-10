@@ -13,8 +13,34 @@
 ```bash
 ./scripts/bootstrap.sh
 ./.venv/bin/python -V
-./.venv/bin/pip install -e apps/api
+make dev
 ```
+
+开发启动入口：
+
+- `make dev`：同时启动前端和后端
+- `make dev-api`：只启动后端
+- `make dev-web`：只启动前端
+- `make migrate-api`：手动执行后端数据库迁移
+- 如果端口被占用，启动脚本会先打印占用该端口的进程，再退出
+
+当前约定：
+
+- `./scripts/bootstrap.sh` 会自动安装后端 Python 依赖到 `./.venv`
+- `./scripts/bootstrap.sh` 会自动执行一次后端迁移
+- `./scripts/dev-api.sh` 启动前也会自动执行 `alembic upgrade head`
+
+前端开发时，`NEXT_PUBLIC_*` 环境变量需要能被 `apps/web` 读取。当前仓库默认通过根目录 `.env` 维护，`./scripts/dev-web.sh` 会自动注入这些 `NEXT_PUBLIC_*` 变量。
+
+如果你单独在 `apps/web` 内启动 Next，也可以改用 `apps/web/.env.local`。
+
+当前统一约定：
+
+- 根目录 `/.env` 是本项目运行时环境变量的唯一来源
+- `./scripts/bootstrap.sh` 会先安装后端依赖，再同步前端公开环境变量并执行迁移
+- `./scripts/dev-api.sh` 会先加载根目录 `/.env`
+- `./scripts/dev-web.sh` 会先加载根目录 `/.env`，再把其中的 `NEXT_PUBLIC_*` 同步到 `apps/web/.env.local`
+- `./scripts/bootstrap.sh`、`./scripts/lint.sh`、`./scripts/test.sh` 也会同步前端公开环境变量，保证脚本行为一致
 
 ## 文档目录
 

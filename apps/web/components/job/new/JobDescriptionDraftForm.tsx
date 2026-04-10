@@ -18,7 +18,12 @@ export function JobDescriptionDraftForm() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const isSubmitting = mutation.isPending;
+  const canSubmit = description.trim().length > 0;
   const errorMessage = submitError;
+
+  function handleBack() {
+    router.push("/jobs/new");
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -44,7 +49,7 @@ export function JobDescriptionDraftForm() {
       title="导入职位描述"
       description="粘贴已有职位描述，生成岗位初稿。"
       actions={
-        <Button href="/jobs/new" variant="secondary">
+        <Button variant="secondary" onClick={handleBack}>
           返回
         </Button>
       }
@@ -84,7 +89,7 @@ export function JobDescriptionDraftForm() {
             ) : null}
 
             <div className="flex flex-wrap gap-3">
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || !canSubmit}>
                 {isSubmitting ? (
                   <span className="inline-flex items-center gap-2">
                     <Spinner className="h-4 w-4 border-white/30 border-t-white" />
@@ -97,9 +102,7 @@ export function JobDescriptionDraftForm() {
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => {
-                  router.push("/jobs");
-                }}
+                onClick={handleBack}
               >
                 返回
               </Button>

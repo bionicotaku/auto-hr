@@ -297,3 +297,17 @@ async def test_candidate_import_service_propagates_analysis_failure(db_session) 
 
     with pytest.raises(DomainValidationError, match="analysis failed"):
         await service.import_candidate(job_id=job.id, raw_text_input="Candidate raw text", files=[])
+
+
+@pytest.mark.anyio
+async def test_candidate_import_service_surfaces_value_error_message(db_session) -> None:
+    settings = get_settings()
+    job = create_active_job(db_session)
+    service = CandidateImportService(
+        db_session,
+        StubCandidateAnalysisService(error=ValueError("pdf parse failed")),
+        CandidatePersistWorkflow(settings=settings, candidate_repository=CandidateRepository()),
+    )
+
+    with pytest.raises(DomainValidationError, match="pdf parse failed"):
+        await service.import_candidate(job_id=job.id, raw_text_input="Candidate raw text", files=[])

@@ -7,11 +7,15 @@ import type {
   JobChatRequestDto,
   JobChatResponseDto,
   JobCandidateImportContextDto,
+  JobCandidateListQueryDto,
+  JobCandidateListResponseDto,
+  JobDetailResponseDto,
   JobEditResponseDto,
   JobFinalizeRequestDto,
   JobFinalizeResponseDto,
   JobGeneratedContentRequestDto,
   JobGeneratedContentResponseDto,
+  JobListResponseDto,
   JobRegenerateRequestDto,
 } from "@/lib/api/types";
 import { ApiError } from "@/lib/api/types";
@@ -69,8 +73,32 @@ export function getJobEdit(jobId: string): Promise<JobEditResponseDto> {
   return apiRequest<JobEditResponseDto>(`/api/jobs/${jobId}/edit`);
 }
 
+export function getJobs(): Promise<JobListResponseDto> {
+  return apiRequest<JobListResponseDto>("/api/jobs");
+}
+
+export function getJobDetail(jobId: string): Promise<JobDetailResponseDto> {
+  return apiRequest<JobDetailResponseDto>(`/api/jobs/${jobId}`);
+}
+
 export function getJobCandidateImportContext(jobId: string): Promise<JobCandidateImportContextDto> {
   return apiRequest<JobCandidateImportContextDto>(`/api/jobs/${jobId}/candidate-import-context`);
+}
+
+export function getJobCandidates(
+  jobId: string,
+  query: JobCandidateListQueryDto,
+): Promise<JobCandidateListResponseDto> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("sort", query.sort);
+  searchParams.set("status", query.status);
+  if (query.q.trim()) {
+    searchParams.set("q", query.q.trim());
+  }
+  for (const tag of query.tags) {
+    searchParams.append("tags", tag);
+  }
+  return apiRequest<JobCandidateListResponseDto>(`/api/jobs/${jobId}/candidates?${searchParams.toString()}`);
 }
 
 export function importCandidateToJob(jobId: string, payload: FormData): Promise<CandidateImportResponseDto> {

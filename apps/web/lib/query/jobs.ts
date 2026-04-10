@@ -7,8 +7,11 @@ import {
   chatJobDraft,
   deleteJobDraft,
   finalizeJobDraft,
+  getJobCandidates,
   getJobCandidateImportContext,
+  getJobDetail,
   getJobEdit,
+  getJobs,
   importCandidateToJob,
   regenerateJobDraft,
 } from "@/lib/api/jobs";
@@ -17,13 +20,33 @@ import type {
   JobChatRequestDto,
   JobChatResponseDto,
   JobCandidateImportContextDto,
+  JobCandidateListQueryDto,
+  JobCandidateListResponseDto,
+  JobDetailResponseDto,
   JobEditResponseDto,
   JobFinalizeRequestDto,
   JobFinalizeResponseDto,
   JobGeneratedContentRequestDto,
   JobGeneratedContentResponseDto,
+  JobListResponseDto,
   JobRegenerateRequestDto,
 } from "@/lib/api/types";
+
+export function useJobsQuery() {
+  return useQuery<JobListResponseDto>({
+    queryKey: ["jobs"],
+    queryFn: () => getJobs(),
+    retry: false,
+  });
+}
+
+export function useJobDetailQuery(jobId: string) {
+  return useQuery<JobDetailResponseDto>({
+    queryKey: ["job-detail", jobId],
+    queryFn: () => getJobDetail(jobId),
+    enabled: Boolean(jobId),
+  });
+}
 
 export function useJobEditQuery(jobId: string) {
   return useQuery<JobEditResponseDto>({
@@ -37,6 +60,14 @@ export function useJobCandidateImportContextQuery(jobId: string) {
   return useQuery<JobCandidateImportContextDto>({
     queryKey: ["job-candidate-import-context", jobId],
     queryFn: () => getJobCandidateImportContext(jobId),
+    enabled: Boolean(jobId),
+  });
+}
+
+export function useJobCandidatesQuery(jobId: string, query: JobCandidateListQueryDto) {
+  return useQuery<JobCandidateListResponseDto>({
+    queryKey: ["job-candidates", jobId, query.sort, query.status, query.tags.join(","), query.q],
+    queryFn: () => getJobCandidates(jobId, query),
     enabled: Boolean(jobId),
   });
 }

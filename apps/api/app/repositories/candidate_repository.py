@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.candidate import Candidate
@@ -186,3 +186,72 @@ class CandidateRepository:
         if candidate is None:
             raise LookupError(candidate_id)
         return candidate
+
+    def count_candidates_by_job_ids(self, session: Session, job_ids: list[str]) -> dict[str, int]:
+        if not job_ids:
+            return {}
+
+        statement = (
+            select(Candidate.job_id, func.count(Candidate.id))
+            .where(Candidate.job_id.in_(job_ids))
+            .group_by(Candidate.job_id)
+        )
+        return {job_id: count for job_id, count in session.execute(statement).all()}
+
+    def list_candidates_for_job(
+        self,
+        session: Session,
+        *,
+        job_id: str,
+        sort: str,
+        status: str,
+        tags: list[str],
+        query: str | None,
+    ) -> list[Candidate]:
+        statement = select(Candidate).options(selectinload(Candidate.tags)).where(Candidate.job_id == job_id)
+
+        if status != "all":
+            statement = statement.where(Candidate.current_status == status)
+
+        normalized_query = query.strip() if query else None
+        if normalized_query:
+            like = f"%{normalized_query}%"
+            statement = statement.where(
+                or_(Candidate.full_name.ilike(like), Candidate.ai_summary.ilike(like))
+            )
+
+        if tags:
+            statement = (
+                statement.join(CandidateTag)
+                .where(CandidateTag.tag_name.in_(tags))
+                .distinct()
+            )
+
+        if sort == "score_asc":
+            statement = statement.order_by(
+                Candidate.overall_score_percent.is_(None),
+                Candidate.overall_score_percent.asc(),
+                Candidate.created_at.desc(),
+            )
+        elif sort == "created_at_asc":
+            statement = statement.order_by(Candidate.created_at.asc())
+        elif sort == "created_at_desc":
+            statement = statement.order_by(Candidate.created_at.desc())
+        else:
+            statement = statement.order_by(
+                Candidate.overall_score_percent.is_(None),
+                Candidate.overall_score_percent.desc(),
+                Candidate.created_at.desc(),
+            )
+
+        return list(session.scalars(statement).all())
+
+    def list_available_tags_for_job(self, session: Session, job_id: str) -> list[str]:
+        statement = (
+            select(CandidateTag.tag_name)
+            .join(Candidate, Candidate.id == CandidateTag.candidate_id)
+            .where(Candidate.job_id == job_id)
+            .distinct()
+            .order_by(CandidateTag.tag_name.asc())
+        )
+        return list(session.scalars(statement).all())

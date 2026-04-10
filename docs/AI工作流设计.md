@@ -85,7 +85,7 @@
     
 - 统一使用 **`gpt-5.4`**
     
-- 统一设置 **`reasoning = high`**
+- 统一设置 **`reasoning = medium`**
     
 - 统一从项目 `.env` 中读取 **`OPENAI_API_KEY`**
     

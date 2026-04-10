@@ -5,7 +5,9 @@ from app.ai.prompts.job_definition import (
     build_create_draft_from_description_prompt,
     build_create_draft_from_form_prompt,
 )
-from app.schemas.ai.job_definition import JobDraftSchema
+from app.schemas.ai.job_definition import (
+    JobDraftSchema,
+)
 
 
 class JobDefinitionCreateDraftWorkflow:

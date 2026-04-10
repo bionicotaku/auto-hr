@@ -11,10 +11,10 @@ def build_create_draft_from_description_prompt(description_text: str) -> str:
 1. 输出必须符合给定 JSON Schema。
 2. 生成 title、summary、structured_info_json、description_text、rubric_items。
 3. rubric_items 必须同时包含 weighted 和 hard_requirement 的合理划分。
-4. hard_requirement 项必须设置 weight_input=100，weight_normalized=null。
-5. weighted 项必须设置 0-1 之间的 weight_normalized。
-6. scoring_standard_json 必须完整、可读、可直接用于后续 Candidate 分析。
-7. agent_prompt_text 与 evidence_guidance_text 必须明确，不允许空泛。
+4. hard_requirement 项必须设置 weight_input=100。
+5. 不要生成 weight_normalized，后端会在接收后统一计算。
+6. 不要生成 scoring_standard_json。
+7. 不要生成 agent_prompt_text 和 evidence_guidance_text。
 8. 不要输出额外说明，不要输出 markdown。
 
 原始职位描述如下：
@@ -34,9 +34,9 @@ def build_create_draft_from_form_prompt(form_payload: dict) -> str:
 2. 生成 title、summary、structured_info_json、description_text、rubric_items。
 3. description_text 需要扩写成可编辑的 JD 初稿。
 4. rubric_items 需要覆盖岗位最重要的评估维度，并同时区分 weighted 与 hard_requirement。
-5. hard_requirement 项必须设置 weight_input=100，weight_normalized=null。
-6. weighted 项必须设置 0-1 之间的 weight_normalized。
-7. scoring_standard_json、agent_prompt_text、evidence_guidance_text 需要完整且可执行。
+5. hard_requirement 项必须设置 weight_input=100。
+6. 不要生成 weight_normalized，后端会在接收后统一计算。
+7. 不要生成 scoring_standard_json、agent_prompt_text、evidence_guidance_text。
 8. 不要输出额外说明，不要输出 markdown。
 
 岗位基础信息如下：
@@ -96,10 +96,11 @@ def build_job_agent_edit_prompt(
 要求：
 1. 输出必须符合给定 JSON Schema。
 2. 返回新的 `description_text` 和完整的 `rubric_items`。
-3. `rubric_items` 必须保留完整评分标准、子 agent 提示词和证据提取说明。
-4. hard_requirement 项必须设置 `weight_input=100` 且 `weight_normalized=null`。
-5. weighted 项必须设置合法的 `weight_normalized`。
-6. 不要输出额外说明，不要输出 markdown。
+3. `rubric_items` 必须保留完整的名称、说明、criterion_type 和权重。
+4. 不要生成 scoring_standard_json、agent_prompt_text、evidence_guidance_text。
+5. hard_requirement 项必须设置 `weight_input=100`。
+6. 不要生成 `weight_normalized`，后端会在接收后统一计算。
+7. 不要输出额外说明，不要输出 markdown。
 
 当前职位描述：
 {description_text}
@@ -139,8 +140,10 @@ def build_job_regenerate_prompt(
 2. 只基于原始输入、历史摘要、最近对话和必要上下文重新生成。
 3. 当前编辑区版本不会提供，请不要假设你已经看过当前编辑中的 JD 或 rubric。
 4. 返回新的 `description_text` 和完整的 `rubric_items`。
-5. rubric_items 仍需满足 hard_requirement 与 weighted 的权重规则。
-6. 不要输出额外说明，不要输出 markdown。
+5. 不要生成 scoring_standard_json、agent_prompt_text、evidence_guidance_text。
+6. 不要生成 `weight_normalized`，后端会在接收后统一计算。
+7. rubric_items 仍需满足 hard_requirement 与 weighted 的权重规则。
+8. 不要输出额外说明，不要输出 markdown。
 
 原始职位描述输入：
 {original_text}
@@ -164,48 +167,30 @@ structured_info_json:
 
 def build_job_finalize_prompt(
     *,
-    title: str,
-    summary: str,
     description_text: str,
     rubric_items: list[dict],
-    structured_info_json: dict,
-    original_description_input: str | None,
-    original_form_input_json: dict | None,
 ) -> str:
     serialized_rubric = json.dumps(rubric_items, ensure_ascii=False, indent=2)
-    serialized_structured_info = json.dumps(structured_info_json, ensure_ascii=False, indent=2)
-    serialized_form = json.dumps(original_form_input_json, ensure_ascii=False, indent=2)
     return f"""
 你是招聘系统中的岗位定稿助手。
 
-请基于当前最终版岗位定义，输出一个可直接入库的正式 Job 严格 JSON。
+请只基于当前用户已经编辑好的最新职位描述和最新 rubric，为每个 rubric item 补全 `scoring_standard_json`、`agent_prompt_text`、`evidence_guidance_text`，输出严格 JSON。
 
 要求：
 1. 输出必须符合给定 JSON Schema。
-2. 返回 `title`、`summary`、`structured_info_json`、`description_text`、完整 `rubric_items`。
-3. rubric_items 必须保留 `criterion_type`、`scoring_standard_json`、`agent_prompt_text`、`evidence_guidance_text`。
-4. hard_requirement 项必须设置 `weight_input=100` 且 `weight_normalized=null`。
-5. weighted 项必须设置合法 `weight_normalized`，并保持语义完整。
-6. 不要输出额外说明，不要输出 markdown。
-
-当前标题：
-{title}
-
-当前 summary：
-{summary}
+2. 只返回 `rubric_items`。
+3. 每个 item 只返回 `sort_order`、`scoring_standard_json`、`agent_prompt_text`、`evidence_guidance_text`。
+4. `scoring_standard_json` 必须使用数组形式，每一项都必须是 {{ "key": "...", "value": "..." }}。
+5. `hard_requirement` 项应生成三档标准：`满足`、`部分满足`、`不满足`。
+6. `weighted` 项应生成五档标准：`5`、`4`、`3`、`2`、`1`。
+7. `agent_prompt_text` 必须明确告诉后续 Candidate 分析如何判断该维度。
+8. `evidence_guidance_text` 必须明确说明应该优先收集哪些证据。
+9. 不要参考任何原始输入、历史输入或旧版本定义，只使用下面提供的当前最新内容。
+10. 不要修改或重写 rubric 的其他字段，不要输出额外说明，不要输出 markdown。
 
 当前职位描述：
 {description_text}
 
-当前 structured_info_json：
-{serialized_structured_info}
-
 当前 rubric：
 {serialized_rubric}
-
-原始职位描述输入：
-{original_description_input or ""}
-
-原始表单输入：
-{serialized_form}
 """.strip()

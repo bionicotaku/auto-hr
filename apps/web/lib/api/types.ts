@@ -115,3 +115,60 @@ export type CandidateImportResponseDto = {
   candidate_id: string;
   job_id: string;
 };
+
+export type JobListItemDto = {
+  job_id: string;
+  title: string;
+  summary: string;
+  lifecycle_status: "draft" | "active";
+  candidate_count: number;
+  updated_at: string;
+};
+
+export type JobListResponseDto = {
+  items: JobListItemDto[];
+};
+
+export type JobDetailRubricSummaryItemDto = {
+  name: string;
+  criterion_type: "weighted" | "hard_requirement";
+  weight_label: string;
+};
+
+export type JobDetailStructuredInfoItemDto = {
+  label: string;
+  value: string;
+};
+
+export type JobDetailResponseDto = {
+  job_id: string;
+  title: string;
+  summary: string;
+  description_text: string;
+  lifecycle_status: "draft" | "active";
+  candidate_count: number;
+  rubric_summary: JobDetailRubricSummaryItemDto[];
+  structured_info_summary: JobDetailStructuredInfoItemDto[];
+};
+
+export type JobCandidateListItemDto = {
+  candidate_id: string;
+  full_name: string;
+  ai_summary: string;
+  overall_score_percent: number | null;
+  current_status: "pending" | "in_progress" | "rejected" | "offer_sent" | "hired";
+  tags: string[];
+  created_at: string;
+};
+
+export type JobCandidateListQueryDto = {
+  sort: "score_desc" | "score_asc" | "created_at_desc" | "created_at_asc";
+  status: "all" | "pending" | "in_progress" | "rejected" | "offer_sent" | "hired";
+  tags: string[];
+  q: string;
+};
+
+export type JobCandidateListResponseDto = {
+  items: JobCandidateListItemDto[];
+  available_tags: string[];
+};

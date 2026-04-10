@@ -7,6 +7,9 @@ if [ ! -x "./.venv/bin/python" ]; then
   exit 1
 fi
 
+source ./scripts/load-root-env.sh
+./scripts/sync-web-env.sh
+
 echo "[test] running backend tests"
 ./.venv/bin/python -m pytest apps/api/tests
 

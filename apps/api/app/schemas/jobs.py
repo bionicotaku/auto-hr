@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class CreateJobFromDescriptionRequest(BaseModel):
-    description_text: str = Field(min_length=20, max_length=12000)
+    description_text: str = Field(max_length=12000)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -19,7 +19,7 @@ class CreateJobFromDescriptionRequest(BaseModel):
 
 
 class CreateJobFromFormRequest(BaseModel):
-    job_title: str = Field(min_length=2, max_length=200)
+    job_title: str = Field(max_length=200)
     department: str | None = Field(default=None, max_length=120)
     location: str | None = Field(default=None, max_length=120)
     employment_type: str | None = Field(default=None, max_length=80)
@@ -31,7 +31,6 @@ class CreateJobFromFormRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     @field_validator(
-        "job_title",
         "department",
         "location",
         "employment_type",
@@ -47,6 +46,16 @@ class CreateJobFromFormRequest(BaseModel):
             return None
         normalized = value.strip()
         return normalized or None
+
+    @field_validator("job_title", mode="before")
+    @classmethod
+    def normalize_job_title(cls, value: str | None) -> str:
+        if value is None:
+            raise ValueError("job_title must not be empty.")
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("job_title must not be empty.")
+        return normalized
 
 
 class JobRubricItemResponse(BaseModel):
@@ -88,8 +97,8 @@ class JobRubricItemRequest(BaseModel):
     weight_input: float = Field(ge=0)
     weight_normalized: float | None = Field(default=None, ge=0, le=1)
     scoring_standard_json: dict[str, Any]
-    agent_prompt_text: str = Field(min_length=1, max_length=4000)
-    evidence_guidance_text: str = Field(min_length=1, max_length=2000)
+    agent_prompt_text: str = Field(default="", max_length=4000)
+    evidence_guidance_text: str = Field(default="", max_length=2000)
 
     model_config = ConfigDict(extra="forbid", from_attributes=True)
 
@@ -102,8 +111,8 @@ class JobGeneratedRubricItemResponse(BaseModel):
     weight_input: float
     weight_normalized: float | None
     scoring_standard_json: dict[str, Any]
-    agent_prompt_text: str
-    evidence_guidance_text: str
+    agent_prompt_text: str = ""
+    evidence_guidance_text: str = ""
 
 
 class JobChatRequest(BaseModel):
@@ -181,6 +190,56 @@ class JobCandidateImportContextResponse(BaseModel):
 class CandidateImportResponse(BaseModel):
     candidate_id: str
     job_id: str
+
+
+class JobListItemResponse(BaseModel):
+    job_id: str
+    title: str
+    summary: str
+    lifecycle_status: Literal["draft", "active"]
+    candidate_count: int
+    updated_at: datetime
+
+
+class JobListResponse(BaseModel):
+    items: list[JobListItemResponse]
+
+
+class JobDetailRubricSummaryItemResponse(BaseModel):
+    name: str
+    criterion_type: Literal["weighted", "hard_requirement"]
+    weight_label: str
+
+
+class JobDetailStructuredInfoItemResponse(BaseModel):
+    label: str
+    value: str
+
+
+class JobDetailResponse(BaseModel):
+    job_id: str
+    title: str
+    summary: str
+    description_text: str
+    lifecycle_status: Literal["draft", "active"]
+    candidate_count: int
+    rubric_summary: list[JobDetailRubricSummaryItemResponse]
+    structured_info_summary: list[JobDetailStructuredInfoItemResponse]
+
+
+class JobCandidateListItemResponse(BaseModel):
+    candidate_id: str
+    full_name: str
+    ai_summary: str
+    overall_score_percent: float | None
+    current_status: Literal["pending", "in_progress", "rejected", "offer_sent", "hired"]
+    tags: list[str]
+    created_at: datetime
+
+
+class JobCandidateListResponse(BaseModel):
+    items: list[JobCandidateListItemResponse]
+    available_tags: list[str]
 
 
 class JobEditResponse(BaseModel):

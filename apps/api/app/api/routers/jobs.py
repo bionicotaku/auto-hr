@@ -1,4 +1,6 @@
-from fastapi import APIRouter, File, Form, Response, UploadFile, status
+from typing import Literal
+
+from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 
 from app.api import service_deps
 from app.api.deps import AppSettings, DbSession
@@ -9,12 +11,15 @@ from app.schemas.jobs import (
     CreateJobFromFormRequest,
     JobAgentEditRequest,
     JobCandidateImportContextResponse,
+    JobCandidateListResponse,
     JobChatRequest,
     JobChatResponse,
+    JobDetailResponse,
     JobEditResponse,
     JobFinalizeRequest,
     JobFinalizeResponse,
     JobGeneratedContentResponse,
+    JobListResponse,
     JobRegenerateRequest,
 )
 
@@ -41,6 +46,18 @@ def create_job_from_form(
     return service.create_draft_from_form(payload)
 
 
+@router.get("", response_model=JobListResponse)
+def list_jobs(session: DbSession, settings: AppSettings) -> JobListResponse:
+    service = service_deps.get_job_query_service(session, settings)
+    return service.list_jobs()
+
+
+@router.get("/{job_id}", response_model=JobDetailResponse)
+def get_job_detail(job_id: str, session: DbSession, settings: AppSettings) -> JobDetailResponse:
+    service = service_deps.get_job_query_service(session, settings)
+    return service.get_job_detail(job_id)
+
+
 @router.get("/{job_id}/edit", response_model=JobEditResponse)
 def get_job_edit(job_id: str, session: DbSession, settings: AppSettings) -> JobEditResponse:
     service = service_deps.get_job_service(session, settings)
@@ -55,6 +72,31 @@ def get_job_candidate_import_context(
 ) -> JobCandidateImportContextResponse:
     service = service_deps.get_job_service(session, settings)
     return service.get_candidate_import_context(job_id)
+
+
+@router.get("/{job_id}/candidates", response_model=JobCandidateListResponse)
+def list_job_candidates(
+    job_id: str,
+    session: DbSession,
+    settings: AppSettings,
+    sort: Literal["score_desc", "score_asc", "created_at_desc", "created_at_asc"] = Query(
+        default="score_desc"
+    ),
+    status_filter: Literal["all", "pending", "in_progress", "rejected", "offer_sent", "hired"] = Query(
+        default="all",
+        alias="status",
+    ),
+    tags: list[str] = Query(default_factory=list),
+    q: str | None = Query(default=None, max_length=120),
+) -> JobCandidateListResponse:
+    service = service_deps.get_job_query_service(session, settings)
+    return service.list_job_candidates(
+        job_id=job_id,
+        sort=sort,
+        status=status_filter,
+        tags=tags,
+        query=q,
+    )
 
 
 @router.post(

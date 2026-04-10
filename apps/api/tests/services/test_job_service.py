@@ -6,7 +6,7 @@ from app.schemas.ai.job_definition import (
     JobAgentEditResponseSchema,
     JobChatResponseSchema,
     JobDraftSchema,
-    JobFinalizeResponseSchema,
+    JobFinalizeScoringResponseSchema,
 )
 from app.schemas.jobs import (
     CreateJobFromDescriptionRequest,
@@ -103,10 +103,6 @@ def make_job_draft() -> JobDraftSchema:
                     "description": "Can run the funnel",
                     "criterion_type": "weighted",
                     "weight_input": 60,
-                    "weight_normalized": 0.6,
-                    "scoring_standard_json": {"score_5": "Excellent"},
-                    "agent_prompt_text": "Judge execution",
-                    "evidence_guidance_text": "Look for hiring throughput",
                 },
                 {
                     "sort_order": 2,
@@ -114,10 +110,6 @@ def make_job_draft() -> JobDraftSchema:
                     "description": "Works globally",
                     "criterion_type": "hard_requirement",
                     "weight_input": 100,
-                    "weight_normalized": None,
-                    "scoring_standard_json": {"pass_definition": "Can collaborate globally"},
-                    "agent_prompt_text": "Judge English collaboration",
-                    "evidence_guidance_text": "Look for cross-border work",
                 },
             ],
         }
@@ -127,51 +119,18 @@ def make_job_draft() -> JobDraftSchema:
 def make_finalize_result(
     weight_input: float = 35,
     secondary_weight_input: float = 15,
-) -> JobFinalizeResponseSchema:
-    return JobFinalizeResponseSchema.model_validate(
+) -> JobFinalizeScoringResponseSchema:
+    return JobFinalizeScoringResponseSchema.model_validate(
         {
-            "title": "Final Recruiting Lead",
-            "summary": "Final summary",
-            "description_text": "Final JD body",
-            "structured_info_json": {
-                "department": "Talent",
-                "location": "Remote",
-                "employment_type": "Full-time",
-                "seniority_level": "Lead",
-                "responsibilities": ["Run hiring"],
-                "requirements": ["Strong recruiting"],
-                "skills": ["Leadership"],
-            },
             "rubric_items": [
                 {
                     "sort_order": 1,
-                    "name": "Execution",
-                    "description": "Can run the funnel",
-                    "criterion_type": "weighted",
-                    "weight_input": weight_input,
-                    "weight_normalized": 0.35,
                     "scoring_standard_json": {"score_5": "Excellent"},
                     "agent_prompt_text": "Judge execution",
                     "evidence_guidance_text": "Look for hiring throughput",
                 },
                 {
                     "sort_order": 2,
-                    "name": "Stakeholder management",
-                    "description": "Aligns hiring managers",
-                    "criterion_type": "weighted",
-                    "weight_input": secondary_weight_input,
-                    "weight_normalized": 0.15 if secondary_weight_input > 0 else 0,
-                    "scoring_standard_json": {"score_5": "Excellent"},
-                    "agent_prompt_text": "Judge stakeholder management",
-                    "evidence_guidance_text": "Look for alignment",
-                },
-                {
-                    "sort_order": 3,
-                    "name": "English collaboration",
-                    "description": "Works globally",
-                    "criterion_type": "hard_requirement",
-                    "weight_input": 100,
-                    "weight_normalized": None,
                     "scoring_standard_json": {"pass_definition": "Can collaborate globally"},
                     "agent_prompt_text": "Judge English collaboration",
                     "evidence_guidance_text": "Look for cross-border work",
@@ -192,6 +151,11 @@ def test_create_draft_from_description_persists_job(db_session) -> None:
     assert response.lifecycle_status == "draft"
     assert loaded.creation_mode == "from_description"
     assert len(loaded.rubric_items) == 2
+    assert loaded.rubric_items[0].weight_normalized == 1.0
+    assert loaded.rubric_items[1].weight_normalized is None
+    assert loaded.rubric_items[0].scoring_standard_json == {}
+    assert loaded.rubric_items[0].agent_prompt_text == ""
+    assert loaded.rubric_items[0].evidence_guidance_text == ""
 
 
 def test_create_draft_from_form_persists_job(db_session) -> None:
@@ -218,7 +182,7 @@ def test_workflow_failure_does_not_create_dirty_draft(db_session) -> None:
         StubWorkflow(error=ValueError("llm failed")),
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(DomainValidationError, match="llm failed"):
         service.create_draft_from_description(
             CreateJobFromDescriptionRequest(description_text="A long enough original job description.")
         )
@@ -278,6 +242,8 @@ def test_agent_edit_on_draft_returns_generated_content_without_writing(db_sessio
 
     loaded = service.get_job_edit_payload(created.job_id)
     assert response.description_text == "New JD body"
+    assert response.rubric_items[0].weight_normalized == 1.0
+    assert response.rubric_items[1].weight_normalized is None
     assert loaded.description_text == "JD body"
     assert agent_workflow.calls[0]["user_input"] == "直接应用新的版本"
 
@@ -331,10 +297,15 @@ def test_finalize_draft_updates_job_to_active_and_replaces_rubric(db_session) ->
     loaded_after = service.get_job_edit_payload(created.job_id)
     assert response.lifecycle_status == "active"
     assert loaded_after.lifecycle_status == "active"
-    assert loaded_after.title == "Final Recruiting Lead"
+    assert loaded_after.title == "Recruiting Lead"
+    assert loaded_after.summary == "Build the recruiting motion."
+    assert loaded_after.description_text == "Locally finalized description"
     assert loaded_after.finalized_at is not None
-    assert len(loaded_after.rubric_items) == 3
+    assert len(loaded_after.rubric_items) == 2
     assert sum(item.weight_input for item in loaded_after.rubric_items if item.criterion_type == "weighted") == 100
+    assert loaded_after.rubric_items[0].scoring_standard_json == {"score_5": "Excellent"}
+    assert loaded_after.rubric_items[0].agent_prompt_text == "Judge execution"
+    assert loaded_after.rubric_items[0].evidence_guidance_text == "Look for hiring throughput"
 
 
 def test_finalize_failure_does_not_override_draft(db_session) -> None:
@@ -396,9 +367,7 @@ def test_finalize_rejects_active_job(db_session) -> None:
 
 
 def test_finalize_rejects_zero_weighted_total(db_session) -> None:
-    finalize_workflow = StubFinalizeWorkflow(
-        result=make_finalize_result(weight_input=0, secondary_weight_input=0)
-    )
+    finalize_workflow = StubFinalizeWorkflow(result=make_finalize_result())
     service = JobService(
         db_session,
         JobRepository(),
@@ -408,12 +377,19 @@ def test_finalize_rejects_zero_weighted_total(db_session) -> None:
     created = service.create_draft_from_description(
         CreateJobFromDescriptionRequest(description_text="Original raw description input.")
     )
+    draft_payload = service.get_job_edit_payload(created.job_id)
+    zero_weight_items = [
+        item.model_copy(update={"weight_input": 0, "weight_normalized": 0})
+        if item.criterion_type == "weighted"
+        else item
+        for item in draft_payload.rubric_items
+    ]
 
     with pytest.raises(DomainValidationError):
         service.finalize_draft(
             created.job_id,
             JobFinalizeRequest(
                 description_text="Locally finalized description",
-                rubric_items=service.get_job_edit_payload(created.job_id).rubric_items,
+                rubric_items=zero_weight_items,
             ),
         )

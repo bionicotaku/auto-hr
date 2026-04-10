@@ -56,6 +56,15 @@ export function JobFormDraftForm() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const isSubmitting = mutation.isPending;
+  const canSubmit =
+    formState.title.trim().length > 0 &&
+    formState.department.trim().length > 0 &&
+    formState.location.trim().length > 0 &&
+    formState.seniorityTarget.trim().length > 0;
+
+  function handleBack() {
+    router.push("/jobs/new");
+  }
 
   function updateField<K extends keyof FormState>(field: K, value: FormState[K]) {
     setFormState((current) => ({ ...current, [field]: value }));
@@ -96,7 +105,7 @@ export function JobFormDraftForm() {
       title="填写岗位信息"
       description="先补全关键岗位信息，再生成岗位初稿。"
       actions={
-        <Button href="/jobs/new" variant="secondary">
+        <Button variant="secondary" onClick={handleBack}>
           返回
         </Button>
       }
@@ -229,7 +238,7 @@ export function JobFormDraftForm() {
             ) : null}
 
             <div className="flex flex-wrap gap-3">
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || !canSubmit}>
                 {isSubmitting ? (
                   <span className="inline-flex items-center gap-2">
                     <Spinner className="h-4 w-4 border-white/30 border-t-white" />
@@ -242,9 +251,7 @@ export function JobFormDraftForm() {
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => {
-                  router.push("/jobs");
-                }}
+                onClick={handleBack}
               >
                 返回
               </Button>

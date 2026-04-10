@@ -7,6 +7,7 @@ from app.repositories.candidate_repository import CandidateRepository
 from app.repositories.job_repository import JobRepository
 from app.services.candidate_analysis_service import CandidateAnalysisService
 from app.services.candidate_import_service import CandidateImportService
+from app.services.job_query_service import JobQueryService
 from app.services.job_service import JobService
 from app.workflows.candidate_analysis.import_prepare import CandidateImportPrepareWorkflow
 from app.workflows.candidate_analysis.persist import CandidatePersistWorkflow
@@ -59,4 +60,12 @@ def get_candidate_import_service(session: Session, settings: Settings) -> Candid
             settings=settings,
             candidate_repository=candidate_repository,
         ),
+    )
+
+
+def get_job_query_service(session: Session, _settings: Settings) -> JobQueryService:
+    return JobQueryService(
+        session=session,
+        job_repository=JobRepository(),
+        candidate_repository=CandidateRepository(),
     )
