@@ -140,11 +140,12 @@ export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProp
     <AppShell
       title="导入候选人"
       description="准备候选人的原始文本和简历文件，后续可继续进入分析链路。"
+      backHref={`/jobs/${jobId}`}
     >
       {contextQuery.isLoading ? (
         <Card className="flex min-h-[240px] items-center justify-center">
-          <div className="inline-flex items-center gap-2 text-sm text-slate-600">
-            <Spinner className="h-4 w-4 border-slate-300 border-t-slate-800" />
+          <div className="inline-flex items-center gap-2 text-sm text-[var(--foreground-soft)]">
+            <Spinner className="h-4 w-4" />
             正在加载岗位信息
           </div>
         </Card>

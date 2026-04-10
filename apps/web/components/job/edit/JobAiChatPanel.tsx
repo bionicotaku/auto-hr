@@ -34,20 +34,30 @@ export function JobAiChatPanel({
   return (
     <Card className="space-y-4">
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-950">修改要求</h2>
-        <p className="text-sm leading-6 text-slate-600">获取建议，或直接让系统生成一版新的岗位定义并覆盖当前内容。</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+          AI workspace
+        </p>
+        <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">修改要求</h2>
+        <p className="text-sm leading-6 text-[var(--foreground-soft)]">
+          获取建议，或直接让系统生成一版新的岗位定义并覆盖当前内容。
+        </p>
       </div>
 
-      <div className="min-h-[220px] space-y-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+      <div className="min-h-[220px] space-y-3 rounded-[24px] border border-[var(--border)] bg-[var(--panel-muted)] px-4 py-4">
         {messages.length === 0 ? (
-          <p className="text-sm leading-6 text-slate-500">暂无消息。</p>
+          <p className="text-sm leading-6 text-[var(--foreground-muted)]">暂无消息。</p>
         ) : (
           messages.map((message, index) => (
-            <div key={`${message.role}-${index}`} className="rounded-2xl bg-white px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <div
+              key={`${message.role}-${index}`}
+              className="rounded-[22px] border border-[var(--border)] bg-[var(--panel-strong)] px-4 py-3"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground-muted)]">
                 {roleLabelMap[message.role]}
               </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{message.content}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)]">
+                {message.content}
+              </p>
             </div>
           ))
         )}
@@ -62,7 +72,7 @@ export function JobAiChatPanel({
       />
 
       {errorMessage ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700">
+        <div className="rounded-[24px] border border-[var(--border)] bg-[var(--accent-danger)] px-4 py-3 text-sm leading-6 text-[var(--foreground)]">
           {errorMessage}
         </div>
       ) : null}

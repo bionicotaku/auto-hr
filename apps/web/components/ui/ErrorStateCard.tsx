@@ -17,8 +17,11 @@ export function ErrorStateCard({
   return (
     <Card className="space-y-4">
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-950">{title}</h2>
-        <p className="text-sm leading-7 text-slate-600">{message}</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+          Error state
+        </p>
+        <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">{title}</h2>
+        <p className="text-sm leading-7 text-[var(--foreground-soft)]">{message}</p>
       </div>
       {actionLabel && onAction ? (
         <div className="flex">

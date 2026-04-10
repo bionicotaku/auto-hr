@@ -7,8 +7,9 @@ import HomePage from "@/app/page";
 import JobsPage from "@/app/jobs/page";
 import { ApiError } from "@/lib/api/types";
 
-const { redirectMock } = vi.hoisted(() => ({
+const { redirectMock, pushMock } = vi.hoisted(() => ({
   redirectMock: vi.fn(),
+  pushMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", async () => {
@@ -17,12 +18,16 @@ vi.mock("next/navigation", async () => {
   return {
     ...actual,
     redirect: redirectMock,
+    useRouter: () => ({
+      push: pushMock,
+    }),
   };
 });
 
 describe("Workspace pages", () => {
   beforeEach(() => {
     redirectMock.mockReset();
+    pushMock.mockReset();
     vi.stubGlobal("fetch", vi.fn());
   });
 
@@ -52,6 +57,27 @@ describe("Workspace pages", () => {
     );
 
     expect(screen.getByRole("heading", { name: "岗位" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "返回上一页" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "切换到深色模式" })).toBeInTheDocument();
+  });
+
+  it("navigates through the floating back button on the jobs page", () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ items: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    render(
+      <Providers>
+        <JobsPage />
+      </Providers>,
+    );
+
+    screen.getByRole("button", { name: "返回上一页" }).click();
+
+    expect(pushMock).toHaveBeenCalledWith("/");
   });
 
   it("shows the jobs overview error state when the request fails", async () => {

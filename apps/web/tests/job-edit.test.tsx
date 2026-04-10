@@ -396,4 +396,28 @@ describe("Job edit workspace", () => {
       expect(pushMock).toHaveBeenCalledWith("/jobs/job-123");
     });
   });
+
+  it("uses the floating back button to leave a draft edit page", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(mockJsonResponse(makeEditPayload()));
+
+    renderWithProviders(<JobEditWorkspace jobId="job-123" />);
+
+    await screen.findByDisplayValue("Initial JD body");
+    fireEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/jobs");
+  });
+
+  it("uses the floating back button to leave an active edit page", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(mockJsonResponse(makeActiveEditPayload()));
+
+    renderWithProviders(<JobEditWorkspace jobId="job-123" />);
+
+    await screen.findByDisplayValue("Initial JD body");
+    fireEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/jobs/job-123");
+  });
 });

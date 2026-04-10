@@ -2,11 +2,18 @@ import { HTMLAttributes } from "react";
 
 import { cn } from "@/lib/utils/cn";
 
-export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+type CardProps = HTMLAttributes<HTMLDivElement> & {
+  tone?: "default" | "muted";
+};
+
+export function Card({ className, tone = "default", ...props }: CardProps) {
   return (
     <div
       className={cn(
-        "rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.06)]",
+        "rounded-[28px] border p-6 backdrop-blur-xl",
+        tone === "default"
+          ? "border-[var(--border)] bg-[var(--panel-strong)] shadow-[var(--shadow-card)]"
+          : "border-[var(--border)] bg-[var(--panel-muted)] shadow-[var(--shadow-soft)]",
         className,
       )}
       {...props}

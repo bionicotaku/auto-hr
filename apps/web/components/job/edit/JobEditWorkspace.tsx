@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { Badge } from "@/components/ui/Badge";
 import { AnalysisProgressCard } from "@/components/ui/AnalysisProgressCard";
 import { Card } from "@/components/ui/Card";
 import { ErrorStateCard } from "@/components/ui/ErrorStateCard";
@@ -111,16 +112,10 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
   const headerActions = useMemo(
     () => (
       <>
-        <span
-          className={
-            editQuery.data?.lifecycle_status === "active"
-              ? "rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700 ring-1 ring-emerald-200"
-              : "rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700 ring-1 ring-amber-200"
-          }
-        >
+        <Badge tone={editQuery.data?.lifecycle_status === "active" ? "success" : "warning"}>
           {editQuery.data?.lifecycle_status === "active" ? "已生效" : "草稿"}
-        </span>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600 ring-1 ring-slate-200">
+        </Badge>
+        <span className="rounded-full bg-[var(--panel-muted)] px-3 py-1 text-sm text-[var(--foreground-soft)] ring-1 ring-[var(--border)]">
           编号 {jobId}
         </span>
       </>
@@ -309,19 +304,23 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
     <AppShell
       title="岗位编辑"
       description="继续完善职位描述与评估规范。"
+      backHref={editQuery.data?.lifecycle_status === "active" ? `/jobs/${jobId}` : "/jobs"}
       actions={headerActions}
     >
       <Card className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+            Workspace summary
+          </p>
+          <p className="text-sm font-semibold text-[var(--foreground)]">
             {title || editQuery.data?.title || "岗位草稿"}
           </p>
-          <p className="text-sm leading-6 text-slate-600">
+          <p className="text-sm leading-6 text-[var(--foreground-soft)]">
             {summary || editQuery.data?.summary || "确认描述与评估规范后，再完成当前岗位。"}
           </p>
         </div>
         {Object.keys(structuredInfoJson).length > 0 || editQuery.data?.structured_info_json ? (
-          <div className="text-sm leading-6 text-slate-600">
+          <div className="rounded-full border border-[var(--border)] bg-[var(--panel-muted)] px-4 py-2 text-sm leading-6 text-[var(--foreground-soft)]">
             <span>{String((structuredInfoJson.location ?? editQuery.data?.structured_info_json.location) ?? "地点待补充")}</span>
           </div>
         ) : null}
@@ -329,8 +328,8 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
 
       {editQuery.isLoading ? (
         <Card className="flex min-h-[240px] items-center justify-center">
-          <div className="inline-flex items-center gap-2 text-sm text-slate-600">
-            <Spinner className="h-4 w-4 border-slate-300 border-t-slate-800" />
+          <div className="inline-flex items-center gap-2 text-sm text-[var(--foreground-soft)]">
+            <Spinner className="h-4 w-4" />
             正在加载岗位信息
           </div>
         </Card>
@@ -344,27 +343,29 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
         />
       ) : (
         <>
-          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr_0.85fr]">
-            <JobDescriptionEditor
-              value={descriptionText}
-              responsibilitiesValue={responsibilitiesText}
-              skillsValue={skillsText}
-              onChange={setDescriptionText}
-              onResponsibilitiesChange={setResponsibilitiesText}
-              onSkillsChange={setSkillsText}
-              disabled={isBusy}
-            />
-            <JobRubricEditor
-              items={rubricItems.length > 0 ? rubricItems : rubricExamples.map((item, index) => ({
-                sort_order: index + 1,
-                name: item.title,
-                description: item.detail,
-                criterion_type: "weighted",
-                weight_input: 10,
-              }))}
-              onItemChange={updateRubricItem}
-              disabled={isBusy}
-            />
+          <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
+            <div className="grid gap-6">
+              <JobDescriptionEditor
+                value={descriptionText}
+                responsibilitiesValue={responsibilitiesText}
+                skillsValue={skillsText}
+                onChange={setDescriptionText}
+                onResponsibilitiesChange={setResponsibilitiesText}
+                onSkillsChange={setSkillsText}
+                disabled={isBusy}
+              />
+              <JobRubricEditor
+                items={rubricItems.length > 0 ? rubricItems : rubricExamples.map((item, index) => ({
+                  sort_order: index + 1,
+                  name: item.title,
+                  description: item.detail,
+                  criterion_type: "weighted",
+                  weight_input: 10,
+                }))}
+                onItemChange={updateRubricItem}
+                disabled={isBusy}
+              />
+            </div>
             <JobAiChatPanel
               messages={messages}
               inputValue={chatInput}

@@ -26,12 +26,17 @@ export function CandidateImportForm({
   return (
     <Card className="space-y-4">
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-950">候选人文本</h2>
-        <p className="text-sm leading-7 text-slate-600">粘贴候选人的简历摘要、推荐语或其他补充说明，方便后续统一整理。</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+          Raw input
+        </p>
+        <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">候选人文本</h2>
+        <p className="text-sm leading-7 text-[var(--foreground-soft)]">
+          粘贴候选人的简历摘要、推荐语或其他补充说明，方便后续统一整理。
+        </p>
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-800" htmlFor="candidate-raw-text">
+        <label className="text-sm font-medium text-[var(--foreground)]" htmlFor="candidate-raw-text">
           候选人原始文本
         </label>
         <Textarea
@@ -44,8 +49,8 @@ export function CandidateImportForm({
         />
       </div>
 
-      {disabledReason ? <p className="text-sm text-amber-700">{disabledReason}</p> : null}
-      {globalError ? <p className="text-sm text-rose-600">{globalError}</p> : null}
+      {disabledReason ? <p className="text-sm text-[var(--foreground-soft)]">{disabledReason}</p> : null}
+      {globalError ? <p className="text-sm text-[var(--foreground)]">{globalError}</p> : null}
 
       <div className="flex flex-wrap gap-3">
         <Button size="lg" disabled={submitDisabled} onClick={onSubmit}>

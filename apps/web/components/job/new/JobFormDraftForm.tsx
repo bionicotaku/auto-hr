@@ -104,6 +104,7 @@ export function JobFormDraftForm() {
     <AppShell
       title="填写岗位信息"
       description="先补全关键岗位信息，再生成岗位初稿。"
+      backHref="/jobs/new"
       actions={
         <Button variant="secondary" onClick={handleBack}>
           返回
@@ -111,16 +112,22 @@ export function JobFormDraftForm() {
       }
       className="max-w-5xl"
     >
-      <Card className="space-y-8">
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold tracking-tight text-slate-950">岗位信息</h2>
-          <p className="text-sm leading-6 text-slate-600">先填最关键的岗位信息，其他内容进入编辑页后再继续调整。</p>
-        </div>
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <Card className="space-y-8">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+              Form workspace
+            </p>
+            <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">岗位信息</h2>
+            <p className="text-sm leading-6 text-[var(--foreground-soft)]">
+              先填最关键的岗位信息，其他内容进入编辑页后再继续调整。
+            </p>
+          </div>
 
           <form className="space-y-8" onSubmit={handleSubmit}>
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-slate-800" htmlFor="job-title">
+                <label className="text-sm font-semibold text-[var(--foreground)]" htmlFor="job-title">
                   岗位名称
                 </label>
                 <Input
@@ -132,7 +139,7 @@ export function JobFormDraftForm() {
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-slate-800" htmlFor="job-department">
+                <label className="text-sm font-semibold text-[var(--foreground)]" htmlFor="job-department">
                   部门
                 </label>
                 <Input
@@ -144,7 +151,7 @@ export function JobFormDraftForm() {
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-slate-800" htmlFor="job-location">
+                <label className="text-sm font-semibold text-[var(--foreground)]" htmlFor="job-location">
                   地点
                 </label>
                 <Input
@@ -156,7 +163,7 @@ export function JobFormDraftForm() {
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-slate-800" htmlFor="job-employment-type">
+                <label className="text-sm font-semibold text-[var(--foreground)]" htmlFor="job-employment-type">
                   用工类型
                 </label>
                 <Select
@@ -173,7 +180,7 @@ export function JobFormDraftForm() {
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-slate-800" htmlFor="job-seniority-target">
+                <label className="text-sm font-semibold text-[var(--foreground)]" htmlFor="job-seniority-target">
                   资历要求
                 </label>
                 <Input
@@ -185,7 +192,7 @@ export function JobFormDraftForm() {
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-slate-800" htmlFor="job-work-mode">
+                <label className="text-sm font-semibold text-[var(--foreground)]" htmlFor="job-work-mode">
                   办公方式
                 </label>
                 <Select
@@ -204,7 +211,7 @@ export function JobFormDraftForm() {
 
             <div className="grid gap-5 lg:grid-cols-2">
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-slate-800" htmlFor="required-experience-summary">
+                <label className="text-sm font-semibold text-[var(--foreground)]" htmlFor="required-experience-summary">
                   必要要求
                 </label>
                 <Textarea
@@ -216,7 +223,7 @@ export function JobFormDraftForm() {
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-slate-800" htmlFor="preferred-experience-summary">
+                <label className="text-sm font-semibold text-[var(--foreground)]" htmlFor="preferred-experience-summary">
                   加分项
                 </label>
                 <Textarea
@@ -231,7 +238,7 @@ export function JobFormDraftForm() {
             {submitError ? (
               <div
                 aria-live="polite"
-                className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700"
+                className="rounded-[24px] border border-[var(--border)] bg-[var(--accent-danger)] px-4 py-3 text-sm leading-6 text-[var(--foreground)]"
               >
                 {submitError}
               </div>
@@ -257,7 +264,32 @@ export function JobFormDraftForm() {
               </Button>
             </div>
           </form>
-      </Card>
+        </Card>
+
+        <Card tone="muted" className="space-y-4">
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">填写建议</h2>
+            <p className="text-sm leading-7 text-[var(--foreground-soft)]">
+              先拿到一个足够好的岗位初稿，再到编辑页继续完善 description、rubric 和 AI 修改要求。
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              "岗位名称、部门、地点和资历要求是当前必须项。",
+              "必要要求与加分项先写清大方向，不需要一步写到最终版本。",
+              "办公方式会作为上下文一并带入岗位初稿生成。",
+            ].map((item) => (
+              <div
+                key={item}
+                className="rounded-[22px] border border-[var(--border)] bg-[var(--panel-strong)] px-4 py-4 text-sm leading-6 text-[var(--foreground-soft)]"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
     </AppShell>
   );
 }

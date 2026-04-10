@@ -6,6 +6,19 @@ import CandidateDetailPage from "@/app/candidates/[candidateId]/page";
 import { Providers } from "@/app/providers";
 import type { CandidateDetailDto } from "@/lib/api/types";
 
+const pushMock = vi.fn();
+
+vi.mock("next/navigation", async () => {
+  const actual = await vi.importActual<typeof import("next/navigation")>("next/navigation");
+
+  return {
+    ...actual,
+    useRouter: () => ({
+      push: pushMock,
+    }),
+  };
+});
+
 function renderWithProviders(node: ReactElement) {
   return render(<Providers>{node}</Providers>);
 }
@@ -21,6 +34,7 @@ function mockJsonResponse(body: unknown, status = 200) {
 
 describe("Candidate detail page", () => {
   beforeEach(() => {
+    pushMock.mockReset();
     vi.stubGlobal("fetch", vi.fn());
   });
 
@@ -395,5 +409,59 @@ describe("Candidate detail page", () => {
       expect(screen.getByText("offer subject")).toBeInTheDocument();
       expect(screen.getByText("offer body")).toBeInTheDocument();
     });
+  });
+
+  it("uses the floating back button to return to the related job", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      mockJsonResponse({
+        candidate_id: "candidate-001",
+        job: {
+          job_id: "job-001",
+          title: "AI Recruiter",
+        },
+        raw_input: {
+          raw_text_input: "Candidate raw input",
+          documents: [],
+        },
+        normalized_profile: {
+          identity: {
+            full_name: "Ada Lovelace",
+          },
+          profile_summary: {},
+          work_experiences: [],
+          educations: [],
+          skills: {
+            skills_raw: [],
+            skills_normalized: [],
+          },
+          employment_preferences: {},
+          application_answers: [],
+          additional_information: {},
+        },
+        rubric_results: [],
+        supervisor_summary: {
+          hard_requirement_overall: "all_pass",
+          overall_score_percent: 90,
+          ai_summary: "Strong recruiting operator",
+          evidence_points: [],
+          recommendation: "advance",
+          tags: [],
+        },
+        action_context: {
+          current_status: "pending",
+          feedbacks: [],
+          email_drafts: [],
+        },
+      }),
+    );
+
+    renderWithProviders(
+      await CandidateDetailPage({ params: Promise.resolve({ candidateId: "candidate-001" }) }),
+    );
+
+    await screen.findByRole("heading", { name: "Ada Lovelace" });
+    fireEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/jobs/job-001");
   });
 });

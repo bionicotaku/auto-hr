@@ -233,6 +233,27 @@ describe("Candidate import page", () => {
     expect(textarea).toHaveValue("Candidate profile summary");
   });
 
+  it("uses the floating back button to return to the current job", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(
+      mockJsonResponse({
+        job_id: "job-001",
+        title: "AI Recruiter",
+        summary: "Own the recruiting workflow.",
+        lifecycle_status: "active",
+      }),
+    );
+
+    renderWithProviders(
+      await CandidateImportPage({ params: Promise.resolve({ jobId: "job-001" }) }),
+    );
+
+    await screen.findByText("AI Recruiter");
+    fireEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/jobs/job-001");
+  });
+
   it("starts an analysis run and navigates to candidate detail after completion", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock

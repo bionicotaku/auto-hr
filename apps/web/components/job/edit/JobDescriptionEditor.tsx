@@ -21,39 +21,44 @@ export function JobDescriptionEditor({
   disabled = false,
 }: JobDescriptionEditorProps) {
   return (
-    <Card className="space-y-4">
+    <Card className="space-y-5">
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-950">职位描述</h2>
-        <p className="text-sm leading-6 text-slate-600">整理岗位职责、任职要求和工作方式。</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+          Definition
+        </p>
+        <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">职位描述</h2>
+        <p className="text-sm leading-6 text-[var(--foreground-soft)]">整理岗位职责、任职要求和工作方式。</p>
       </div>
       <Textarea
         aria-label="职位描述编辑区"
-        className="min-h-[420px] bg-slate-50"
+        className="min-h-[360px]"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
       />
 
-      <div className="space-y-2">
-        <label className="text-sm font-semibold text-slate-800">Responsibilities</label>
-        <Textarea
-          aria-label="Responsibilities 编辑区"
-          className="min-h-[160px] bg-slate-50"
-          value={responsibilitiesValue}
-          onChange={(event) => onResponsibilitiesChange(event.target.value)}
-          disabled={disabled}
-        />
-      </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-[var(--foreground)]">岗位职责</label>
+          <Textarea
+            aria-label="Responsibilities 编辑区"
+            className="min-h-[180px]"
+            value={responsibilitiesValue}
+            onChange={(event) => onResponsibilitiesChange(event.target.value)}
+            disabled={disabled}
+          />
+        </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-semibold text-slate-800">Skills</label>
-        <Textarea
-          aria-label="Skills 编辑区"
-          className="min-h-[160px] bg-slate-50"
-          value={skillsValue}
-          onChange={(event) => onSkillsChange(event.target.value)}
-          disabled={disabled}
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-[var(--foreground)]">关键技能</label>
+          <Textarea
+            aria-label="Skills 编辑区"
+            className="min-h-[180px]"
+            value={skillsValue}
+            onChange={(event) => onSkillsChange(event.target.value)}
+            disabled={disabled}
+          />
+        </div>
       </div>
     </Card>
   );

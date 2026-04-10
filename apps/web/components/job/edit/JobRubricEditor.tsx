@@ -26,21 +26,27 @@ export function JobRubricEditor({
   onItemChange,
 }: JobRubricEditorProps) {
   return (
-    <Card className="space-y-4">
+    <Card className="space-y-5">
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-950">评估规范</h2>
-        <p className="text-sm leading-6 text-slate-600">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+          Rubric
+        </p>
+        <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">评估规范</h2>
+        <p className="text-sm leading-6 text-[var(--foreground-soft)]">
           明确评估维度、必须项和评分标准。权重 100 代表必须满足的硬要求。
         </p>
       </div>
 
       <div className="space-y-4">
         {items.map((item, index) => (
-          <div key={`${item.sort_order}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+          <div
+            key={`${item.sort_order}-${index}`}
+            className="rounded-[24px] border border-[var(--border)] bg-[var(--panel-muted)] px-4 py-4"
+          >
             <div className="grid gap-4">
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_88px]">
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-800">评估项</label>
+                  <label className="text-sm font-semibold text-[var(--foreground)]">评估项</label>
                   <Input
                     value={item.name}
                     onChange={(event) => onItemChange(index, "name", event.target.value)}
@@ -49,7 +55,7 @@ export function JobRubricEditor({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-800">权重</label>
+                  <label className="text-sm font-semibold text-[var(--foreground)]">权重</label>
                   <Input
                     type="number"
                     step="1"
@@ -63,7 +69,7 @@ export function JobRubricEditor({
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-800">说明</label>
+                <label className="text-sm font-semibold text-[var(--foreground)]">说明</label>
                 <Textarea
                   className="min-h-[120px]"
                   value={item.description}

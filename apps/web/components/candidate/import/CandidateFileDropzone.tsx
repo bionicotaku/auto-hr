@@ -51,15 +51,20 @@ export function CandidateFileDropzone({
   return (
     <Card className="space-y-4">
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-950">上传 PDF</h2>
-        <p className="text-sm leading-7 text-slate-600">最多选择 4 份简历或补充材料，文件会按当前顺序显示。</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+          PDF upload
+        </p>
+        <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">上传 PDF</h2>
+        <p className="text-sm leading-7 text-[var(--foreground-soft)]">
+          最多选择 4 份简历或补充材料，文件会按当前顺序显示。
+        </p>
       </div>
 
       <label
-        className={`flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed px-6 py-8 text-center transition ${
+        className={`flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-[28px] border border-dashed px-6 py-8 text-center transition-colors duration-200 ease-out motion-reduce:transition-none ${
           isDragging
-            ? "border-slate-700 bg-slate-100"
-            : "border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-white"
+            ? "border-[var(--border-strong)] bg-[var(--panel-muted)]"
+            : "border-[var(--border)] bg-[var(--panel-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--panel-strong)]"
         }`}
         htmlFor="candidate-import-files"
         onDragEnter={handleDragEnter}
@@ -67,8 +72,10 @@ export function CandidateFileDropzone({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <span className="text-base font-semibold text-slate-900">选择 PDF 文件</span>
-        <span className="mt-2 text-sm leading-6 text-slate-600">支持拖拽或点击选择，单次最多 4 个文件。</span>
+        <span className="text-base font-semibold text-[var(--foreground)]">选择 PDF 文件</span>
+        <span className="mt-2 text-sm leading-6 text-[var(--foreground-soft)]">
+          支持拖拽或点击选择，单次最多 4 个文件。
+        </span>
       </label>
       <input
         id="candidate-import-files"
@@ -80,22 +87,22 @@ export function CandidateFileDropzone({
         onChange={handleChange}
       />
 
-      {errorMessage ? <p className="text-sm text-rose-600">{errorMessage}</p> : null}
+      {errorMessage ? <p className="text-sm text-[var(--foreground)]">{errorMessage}</p> : null}
 
       {files.length > 0 ? (
         <div className="space-y-3">
           {files.map((file, index) => (
             <div
               key={`${file.name}-${file.size}-${index}`}
-              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
+              className="flex items-center justify-between rounded-[22px] border border-[var(--border)] bg-[var(--panel-strong)] px-4 py-3"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-900">{file.name}</p>
-                <p className="text-sm text-slate-500">{Math.max(1, Math.round(file.size / 1024))} KB</p>
+                <p className="truncate text-sm font-medium text-[var(--foreground)]">{file.name}</p>
+                <p className="text-sm text-[var(--foreground-muted)]">{Math.max(1, Math.round(file.size / 1024))} KB</p>
               </div>
               <button
                 type="button"
-                className="text-sm font-medium text-slate-500 transition hover:text-slate-900"
+                className="cursor-pointer text-sm font-medium text-[var(--foreground-muted)] transition-colors duration-200 ease-out hover:text-[var(--foreground)] motion-reduce:transition-none"
                 onClick={() => onRemoveFile(index)}
               >
                 移除

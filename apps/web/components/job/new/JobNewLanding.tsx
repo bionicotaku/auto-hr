@@ -22,6 +22,7 @@ export function JobNewLanding() {
     <AppShell
       title="新建岗位"
       description="选择一种方式开始。生成岗位初稿后，你可以继续编辑职位描述与评估规范。"
+      backHref="/jobs"
       actions={
         <Button href="/jobs" variant="secondary">
           返回岗位
@@ -32,8 +33,17 @@ export function JobNewLanding() {
         {creationPaths.map((item) => (
           <Card key={item.title} className="flex h-full flex-col gap-6">
             <div className="space-y-3">
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{item.title}</h2>
-              <p className="text-sm leading-7 text-slate-600">{item.description}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+                创建入口
+              </p>
+              <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">{item.title}</h2>
+              <p className="text-sm leading-7 text-[var(--foreground-soft)]">{item.description}</p>
+            </div>
+
+            <div className="rounded-[24px] border border-[var(--border)] bg-[var(--panel-muted)] px-4 py-4">
+              <p className="text-sm font-medium text-[var(--foreground)]">
+                生成岗位初稿后，会统一进入编辑工作区继续维护。
+              </p>
             </div>
 
             <div className="mt-auto">

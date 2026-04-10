@@ -22,8 +22,8 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
 
   return (
     <div className="grid gap-1 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-start">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="text-sm leading-6 text-slate-700">{value}</p>
+      <p className="text-sm text-[var(--foreground-muted)]">{label}</p>
+      <p className="text-sm leading-6 text-[var(--foreground-soft)]">{value}</p>
     </div>
   );
 }
@@ -64,13 +64,18 @@ export function CandidateNormalizedPanel({ normalizedProfile }: CandidateNormali
   return (
     <Card className="space-y-5">
       <div className="space-y-1">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-950">标准化信息</h2>
-        <p className="text-sm leading-6 text-slate-600">把候选人信息整理成统一结构，便于后续查看和比对。</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+          Normalized profile
+        </p>
+        <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">标准化信息</h2>
+        <p className="text-sm leading-6 text-[var(--foreground-soft)]">
+          把候选人信息整理成统一结构，便于后续查看和比对。
+        </p>
       </div>
 
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-900">基础信息</p>
-        <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+        <p className="text-sm font-medium text-[var(--foreground)]">基础信息</p>
+        <div className="space-y-2 rounded-[24px] border border-[var(--border)] bg-[var(--panel-muted)] px-4 py-4">
           <DetailRow label="姓名" value={identity.full_name} />
           <DetailRow label="当前职位" value={identity.current_title} />
           <DetailRow label="当前公司" value={identity.current_company} />
@@ -82,8 +87,8 @@ export function CandidateNormalizedPanel({ normalizedProfile }: CandidateNormali
       </div>
 
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-900">职业概览</p>
-        <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+        <p className="text-sm font-medium text-[var(--foreground)]">职业概览</p>
+        <div className="space-y-2 rounded-[24px] border border-[var(--border)] bg-[var(--panel-muted)] px-4 py-4">
           <DetailRow label="原始摘要" value={profileSummary.professional_summary_raw} />
           <DetailRow label="标准摘要" value={profileSummary.professional_summary_normalized} />
           <DetailRow
@@ -107,27 +112,27 @@ export function CandidateNormalizedPanel({ normalizedProfile }: CandidateNormali
       </div>
 
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-900">工作经历</p>
+        <p className="text-sm font-medium text-[var(--foreground)]">工作经历</p>
         {normalizedProfile.work_experiences.length > 0 ? (
           <div className="space-y-3">
             {normalizedProfile.work_experiences.map((experience, index) => (
-              <div key={`experience-${index}`} className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+              <div key={`experience-${index}`} className="rounded-[24px] border border-[var(--border)] bg-[var(--panel-strong)] px-4 py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-sm font-semibold text-[var(--foreground)]">
                     {typeof experience.title === "string" && experience.title.trim()
                       ? experience.title
                       : "未命名经历"}
                   </p>
                   {formatExperiencePeriod(experience) ? (
-                    <p className="text-right text-xs text-slate-500">
+                    <p className="text-right text-xs text-[var(--foreground-muted)]">
                       {formatExperiencePeriod(experience)}
                     </p>
                   ) : null}
                 </div>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-[var(--foreground-soft)]">
                   {typeof experience.company_name === "string" ? experience.company_name : ""}
                 </p>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
+                <p className="mt-1 text-sm leading-6 text-[var(--foreground-soft)]">
                   {typeof experience.description_normalized === "string"
                     ? experience.description_normalized
                     : typeof experience.description_raw === "string"
@@ -138,13 +143,13 @@ export function CandidateNormalizedPanel({ normalizedProfile }: CandidateNormali
             ))}
           </div>
         ) : (
-          <p className="text-sm leading-6 text-slate-600">未提取到工作经历。</p>
+          <p className="text-sm leading-6 text-[var(--foreground-soft)]">未提取到工作经历。</p>
         )}
       </div>
 
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-900">教育与技能</p>
-        <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+        <p className="text-sm font-medium text-[var(--foreground)]">教育与技能</p>
+        <div className="space-y-2 rounded-[24px] border border-[var(--border)] bg-[var(--panel-muted)] px-4 py-4">
           <DetailRow
             label="教育经历"
             value={
@@ -167,8 +172,8 @@ export function CandidateNormalizedPanel({ normalizedProfile }: CandidateNormali
       </div>
 
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-900">偏好与补充信息</p>
-        <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+        <p className="text-sm font-medium text-[var(--foreground)]">偏好与补充信息</p>
+        <div className="space-y-2 rounded-[24px] border border-[var(--border)] bg-[var(--panel-muted)] px-4 py-4">
           <DetailRow
             label="工作授权"
             value={

@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 
 import { cn } from "@/lib/utils/cn";
+import { FloatingSideBar } from "@/components/layout/FloatingSideBar";
 
 type AppShellProps = {
   title: string;
@@ -9,6 +10,7 @@ type AppShellProps = {
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
+  backHref?: string;
 };
 
 export function AppShell({
@@ -18,23 +20,35 @@ export function AppShell({
   actions,
   children,
   className,
+  backHref = "/jobs",
 }: AppShellProps) {
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f4f1eb_0%,#f7f5f0_30%,#fbfaf7_100%)] text-slate-950">
+    <main className="ui-page-shell">
       <div className={cn("mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-8 sm:px-8 sm:py-10", className)}>
-        <header className="flex flex-col gap-5 border-b border-slate-200/90 pb-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{eyebrow}</p>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{title}</h1>
-            {description ? (
-              <p className="max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">{description}</p>
-            ) : null}
+        <header className="ui-glass-panel rounded-[32px] px-6 py-6 sm:px-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+                {eyebrow}
+              </p>
+              <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)] sm:text-4xl">
+                {title}
+              </h1>
+              {description ? (
+                <p className="max-w-2xl text-sm leading-7 text-[var(--foreground-soft)] sm:text-base">
+                  {description}
+                </p>
+              ) : null}
+            </div>
+            {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
           </div>
-          {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
         </header>
 
-        {children}
+        <div className="flex flex-col gap-6">
+          {children}
+        </div>
       </div>
+      <FloatingSideBar backHref={backHref} />
     </main>
   );
 }

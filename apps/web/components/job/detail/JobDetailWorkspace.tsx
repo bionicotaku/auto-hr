@@ -59,6 +59,7 @@ export function JobDetailWorkspace({ jobId }: JobDetailWorkspaceProps) {
       <AppShell
         title="岗位详情"
         description="正在加载岗位信息和候选人列表。"
+        backHref="/jobs"
         actions={
           <Button href="/jobs" variant="secondary">
             返回岗位列表
@@ -80,6 +81,7 @@ export function JobDetailWorkspace({ jobId }: JobDetailWorkspaceProps) {
       <AppShell
         title="岗位详情"
         description="加载失败，请稍后重试。"
+        backHref="/jobs"
         actions={
           <Button href="/jobs" variant="secondary">
             返回岗位列表
@@ -105,6 +107,7 @@ export function JobDetailWorkspace({ jobId }: JobDetailWorkspaceProps) {
     <AppShell
       title="岗位详情"
       description="查看岗位摘要、候选人列表，并继续推进导入和筛选。"
+      backHref="/jobs"
       actions={
         <Button href="/jobs" variant="secondary">
           返回岗位列表

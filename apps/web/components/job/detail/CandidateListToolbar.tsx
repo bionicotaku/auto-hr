@@ -47,7 +47,16 @@ export function CandidateListToolbar({
   const mergedTags = [...new Set([...PRESET_CANDIDATE_TAGS, ...availableTags])];
 
   return (
-    <div className="space-y-4 rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+    <div className="space-y-4 rounded-[28px] border border-[var(--border)] bg-[var(--panel-strong)] p-6 shadow-[var(--shadow-card)] backdrop-blur-xl">
+      <div className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+          Candidate filters
+        </p>
+        <p className="text-sm leading-6 text-[var(--foreground-soft)]">
+          在页面内即时调整搜索、排序、状态与标签，不影响 URL。
+        </p>
+      </div>
+
       <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
         <Input
           aria-label="搜索候选人"
@@ -82,10 +91,10 @@ export function CandidateListToolbar({
             <button
               key={tag}
               type="button"
-              className={`rounded-2xl px-3 py-2 text-sm font-medium transition ${
+              className={`cursor-pointer rounded-full px-3 py-2 text-sm font-medium transition-colors duration-200 ease-out motion-reduce:transition-none ${
                 selected
-                  ? "bg-slate-950 text-white"
-                  : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-white"
+                  ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
+                  : "border border-[var(--border)] bg-[var(--panel-muted)] text-[var(--foreground-soft)] hover:bg-[var(--panel-strong)]"
               }`}
               onClick={() => onToggleTag(tag)}
             >

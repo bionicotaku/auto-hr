@@ -77,8 +77,13 @@ describe("Job detail pages", () => {
 
     expect(screen.getByRole("heading", { name: "岗位" })).toBeInTheDocument();
     return waitFor(() => {
+      expect(screen.getByText("已生效岗位")).toBeInTheDocument();
+      expect(screen.getByText("1")).toBeInTheDocument();
       expect(screen.getByText("AI Recruiter")).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: "进入岗位" })).toHaveAttribute("href", "/jobs/job-001");
+      expect(screen.getByRole("link", { name: "进入岗位：AI Recruiter" })).toHaveAttribute(
+        "href",
+        "/jobs/job-001",
+      );
     });
   });
 
@@ -124,6 +129,37 @@ describe("Job detail pages", () => {
       "href",
       "/jobs/job-001/candidates/new",
     );
+    expect(screen.getByRole("button", { name: "返回上一页" })).toBeInTheDocument();
+  });
+
+  it("uses the floating back button on the job detail page", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          job_id: "job-001",
+          title: "AI Recruiter",
+          summary: "Own hiring",
+          description_text: "JD body",
+          lifecycle_status: "active",
+          candidate_count: 2,
+          rubric_summary: [],
+          structured_info_summary: [],
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          items: [],
+          available_tags: [],
+        }),
+      );
+
+    renderWithProviders(await JobDetailPage({ params: Promise.resolve({ jobId: "job-001" }) }));
+
+    await screen.findByText("AI Recruiter");
+    fireEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/jobs");
   });
 
   it("updates the candidate list without changing the URL", async () => {

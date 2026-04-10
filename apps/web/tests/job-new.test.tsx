@@ -42,6 +42,7 @@ describe("Job creation pages", () => {
     renderWithProviders(<JobNewPage />);
 
     expect(screen.getByRole("heading", { name: "新建岗位" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "返回上一页" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "导入职位描述" })).toHaveAttribute(
       "href",
       "/jobs/new/from-description",
@@ -104,6 +105,22 @@ describe("Job creation pages", () => {
 
     expect(pushMock).toHaveBeenNthCalledWith(1, "/jobs/new");
     expect(pushMock).toHaveBeenNthCalledWith(2, "/jobs/new");
+  });
+
+  it("uses the floating back button on the new-job entry page", () => {
+    renderWithProviders(<JobNewPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/jobs");
+  });
+
+  it("uses the floating back button on the description flow", () => {
+    renderWithProviders(<JobNewFromDescriptionPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/jobs/new");
   });
 
   it("submits the form flow and navigates to the edit page on success", async () => {
@@ -178,5 +195,13 @@ describe("Job creation pages", () => {
 
     expect(pushMock).toHaveBeenNthCalledWith(1, "/jobs/new");
     expect(pushMock).toHaveBeenNthCalledWith(2, "/jobs/new");
+  });
+
+  it("uses the floating back button on the form flow", () => {
+    renderWithProviders(<JobNewFromFormPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/jobs/new");
   });
 });

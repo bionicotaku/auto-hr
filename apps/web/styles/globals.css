@@ -1,17 +1,140 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f5f0;
+  --background: #f5fbff;
+  --background-soft: #f7fcf9;
+  --background-warm: #fffdf6;
+  --background-orb-a: rgba(96, 165, 250, 0.24);
+  --background-orb-b: rgba(45, 212, 191, 0.2);
+  --background-orb-c: rgba(251, 191, 36, 0.16);
+  --background-grid: rgba(148, 163, 184, 0.08);
+  --background-sheen: rgba(255, 255, 255, 0.58);
   --foreground: #0f172a;
-  --panel: rgba(255, 255, 255, 0.82);
-  --panel-strong: #ffffff;
-  --border: rgba(148, 163, 184, 0.28);
-  --accent: #0f766e;
-  --accent-strong: #115e59;
-  --accent-soft: #d9f4ef;
-  --sky-soft: #dbeafe;
-  --success-soft: #dcfce7;
-  --shadow-lg: 0 24px 80px rgba(15, 23, 42, 0.12);
+  --foreground-soft: #475569;
+  --foreground-muted: #64748b;
+  --panel: rgba(255, 255, 255, 0.72);
+  --panel-strong: rgba(255, 255, 255, 0.84);
+  --panel-subtle: rgba(255, 255, 255, 0.56);
+  --panel-muted: rgba(241, 245, 249, 0.92);
+  --border: rgba(203, 213, 225, 0.8);
+  --border-strong: rgba(148, 163, 184, 0.42);
+  --accent: #0f172a;
+  --accent-contrast: #ffffff;
+  --accent-soft: #d7f4ef;
+  --accent-info: #dbeafe;
+  --accent-success: #dcfce7;
+  --accent-warning: #fef3c7;
+  --accent-danger: #fee2e2;
+  --badge-mint-bg: #d1fae5;
+  --badge-mint-text: #047857;
+  --badge-lime-bg: #dcfce7;
+  --badge-lime-text: #15803d;
+  --badge-blue-bg: #dbeafe;
+  --badge-blue-text: #0369a1;
+  --badge-amber-bg: #fef3c7;
+  --badge-amber-text: #b45309;
+  --badge-orange-bg: #ffedd5;
+  --badge-orange-text: #c2410c;
+  --badge-red-bg: #fee2e2;
+  --badge-red-text: #b91c1c;
+  --ring: rgba(14, 165, 233, 0.18);
+  --shadow-card: 0 18px 48px rgba(15, 23, 42, 0.08);
+  --shadow-shell: 0 26px 80px rgba(15, 23, 42, 0.1);
+  --shadow-soft: 0 10px 26px rgba(15, 23, 42, 0.05);
+}
+
+html {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #091522;
+  --background-soft: #0b1727;
+  --background-warm: #07111d;
+  --background-orb-a: rgba(56, 189, 248, 0.18);
+  --background-orb-b: rgba(45, 212, 191, 0.12);
+  --background-orb-c: rgba(251, 191, 36, 0.08);
+  --background-grid: rgba(148, 163, 184, 0.06);
+  --background-sheen: rgba(15, 23, 42, 0.22);
+  --foreground: #e2e8f0;
+  --foreground-soft: #cbd5e1;
+  --foreground-muted: #94a3b8;
+  --panel: rgba(15, 23, 42, 0.58);
+  --panel-strong: rgba(15, 23, 42, 0.72);
+  --panel-subtle: rgba(15, 23, 42, 0.44);
+  --panel-muted: rgba(2, 6, 23, 0.64);
+  --border: rgba(148, 163, 184, 0.22);
+  --border-strong: rgba(148, 163, 184, 0.3);
+  --accent: #bae6fd;
+  --accent-contrast: #0f172a;
+  --accent-soft: rgba(34, 197, 94, 0.14);
+  --accent-info: rgba(56, 189, 248, 0.16);
+  --accent-success: rgba(52, 211, 153, 0.16);
+  --accent-warning: rgba(251, 191, 36, 0.16);
+  --accent-danger: rgba(248, 113, 113, 0.16);
+  --badge-mint-bg: rgba(110, 231, 183, 0.12);
+  --badge-mint-text: #a7f3d0;
+  --badge-lime-bg: rgba(74, 222, 128, 0.12);
+  --badge-lime-text: #bbf7d0;
+  --badge-blue-bg: rgba(125, 211, 252, 0.12);
+  --badge-blue-text: #bae6fd;
+  --badge-amber-bg: rgba(251, 191, 36, 0.14);
+  --badge-amber-text: #fde68a;
+  --badge-orange-bg: rgba(251, 146, 60, 0.16);
+  --badge-orange-text: #fdba74;
+  --badge-red-bg: rgba(248, 113, 113, 0.16);
+  --badge-red-text: #fca5a5;
+  --ring: rgba(56, 189, 248, 0.22);
+  --shadow-card: 0 18px 48px rgba(2, 6, 23, 0.34);
+  --shadow-shell: 0 26px 80px rgba(2, 6, 23, 0.4);
+  --shadow-soft: 0 10px 26px rgba(2, 6, 23, 0.26);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    color-scheme: dark;
+    --background: #091522;
+    --background-soft: #0b1727;
+    --background-warm: #07111d;
+    --background-orb-a: rgba(56, 189, 248, 0.18);
+    --background-orb-b: rgba(45, 212, 191, 0.12);
+    --background-orb-c: rgba(251, 191, 36, 0.08);
+    --background-grid: rgba(148, 163, 184, 0.06);
+    --background-sheen: rgba(15, 23, 42, 0.22);
+    --foreground: #e2e8f0;
+    --foreground-soft: #cbd5e1;
+    --foreground-muted: #94a3b8;
+    --panel: rgba(15, 23, 42, 0.58);
+    --panel-strong: rgba(15, 23, 42, 0.72);
+    --panel-subtle: rgba(15, 23, 42, 0.44);
+    --panel-muted: rgba(2, 6, 23, 0.64);
+    --border: rgba(148, 163, 184, 0.22);
+    --border-strong: rgba(148, 163, 184, 0.3);
+    --accent: #bae6fd;
+    --accent-contrast: #0f172a;
+    --accent-soft: rgba(34, 197, 94, 0.14);
+    --accent-info: rgba(56, 189, 248, 0.16);
+    --accent-success: rgba(52, 211, 153, 0.16);
+    --accent-warning: rgba(251, 191, 36, 0.16);
+    --accent-danger: rgba(248, 113, 113, 0.16);
+    --badge-mint-bg: rgba(110, 231, 183, 0.12);
+    --badge-mint-text: #a7f3d0;
+    --badge-lime-bg: rgba(74, 222, 128, 0.12);
+    --badge-lime-text: #bbf7d0;
+    --badge-blue-bg: rgba(125, 211, 252, 0.12);
+    --badge-blue-text: #bae6fd;
+    --badge-amber-bg: rgba(251, 191, 36, 0.14);
+    --badge-amber-text: #fde68a;
+    --badge-orange-bg: rgba(251, 146, 60, 0.16);
+    --badge-orange-text: #fdba74;
+    --badge-red-bg: rgba(248, 113, 113, 0.16);
+    --badge-red-text: #fca5a5;
+    --ring: rgba(56, 189, 248, 0.22);
+    --shadow-card: 0 18px 48px rgba(2, 6, 23, 0.34);
+    --shadow-shell: 0 26px 80px rgba(2, 6, 23, 0.4);
+    --shadow-soft: 0 10px 26px rgba(2, 6, 23, 0.26);
+  }
 }
 
 * {
@@ -25,7 +148,12 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--background);
+  position: relative;
+  background:
+    radial-gradient(circle at 10% 12%, var(--background-orb-a) 0%, transparent 28%),
+    radial-gradient(circle at 84% 18%, var(--background-orb-b) 0%, transparent 30%),
+    radial-gradient(circle at 72% 78%, var(--background-orb-c) 0%, transparent 28%),
+    linear-gradient(180deg, var(--background) 0%, var(--background-soft) 48%, var(--background-warm) 100%);
   color: var(--foreground);
   font-family:
     "Instrument Sans",
@@ -49,4 +177,62 @@ select {
 
 ::selection {
   background: rgba(148, 163, 184, 0.25);
+}
+
+.ui-page-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 8% 10%, var(--background-orb-a) 0%, transparent 24%),
+    radial-gradient(circle at 86% 16%, var(--background-orb-b) 0%, transparent 28%),
+    radial-gradient(circle at 70% 82%, var(--background-orb-c) 0%, transparent 26%),
+    linear-gradient(180deg, var(--background) 0%, var(--background-soft) 48%, var(--background-warm) 100%);
+  color: var(--foreground);
+}
+
+.ui-page-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+  background:
+    linear-gradient(90deg, transparent 0, transparent 23px, var(--background-grid) 24px),
+    linear-gradient(180deg, transparent 0, transparent 23px, var(--background-grid) 24px);
+  background-size: 24px 24px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.1) 36%, transparent 100%);
+}
+
+.ui-page-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 18% 14%, var(--background-sheen) 0%, transparent 26%),
+    radial-gradient(circle at 82% 22%, rgba(255, 255, 255, 0.14) 0%, transparent 22%),
+    radial-gradient(circle at 56% 100%, rgba(255, 255, 255, 0.12) 0%, transparent 26%);
+  filter: blur(12px);
+  opacity: 0.9;
+}
+
+.ui-glass-panel {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(20px);
+}
+
+.ui-glass-panel-strong {
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(20px);
+}
+
+.ui-muted-panel {
+  border: 1px solid var(--border);
+  background: var(--panel-muted);
 }

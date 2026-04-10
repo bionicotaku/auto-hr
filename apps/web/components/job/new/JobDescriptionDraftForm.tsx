@@ -48,6 +48,7 @@ export function JobDescriptionDraftForm() {
     <AppShell
       title="导入职位描述"
       description="粘贴已有职位描述，生成岗位初稿。"
+      backHref="/jobs/new"
       actions={
         <Button variant="secondary" onClick={handleBack}>
           返回
@@ -55,15 +56,21 @@ export function JobDescriptionDraftForm() {
       }
       className="max-w-4xl"
     >
-      <Card className="space-y-6">
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold tracking-tight text-slate-950">职位描述</h2>
-          <p className="text-sm leading-6 text-slate-600">建议包含岗位职责、任职要求、地点和工作方式。</p>
-        </div>
+      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <Card className="space-y-6">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--foreground-muted)]">
+              Form workspace
+            </p>
+            <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">职位描述</h2>
+            <p className="text-sm leading-6 text-[var(--foreground-soft)]">
+              建议包含岗位职责、任职要求、地点和工作方式。
+            </p>
+          </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-3">
-              <label className="text-sm font-semibold text-slate-800" htmlFor="job-description">
+              <label className="text-sm font-semibold text-[var(--foreground)]" htmlFor="job-description">
                 职位描述
               </label>
               <Textarea
@@ -82,7 +89,7 @@ export function JobDescriptionDraftForm() {
             {errorMessage ? (
               <div
                 aria-live="polite"
-                className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700"
+                className="rounded-[24px] border border-[var(--border)] bg-[var(--accent-danger)] px-4 py-3 text-sm leading-6 text-[var(--foreground)]"
               >
                 {errorMessage}
               </div>
@@ -99,16 +106,37 @@ export function JobDescriptionDraftForm() {
                   "生成岗位初稿"
                 )}
               </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleBack}
-              >
+              <Button type="button" variant="secondary" onClick={handleBack}>
                 返回
               </Button>
             </div>
           </form>
-      </Card>
+        </Card>
+
+        <Card tone="muted" className="space-y-4">
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">填写建议</h2>
+            <p className="text-sm leading-7 text-[var(--foreground-soft)]">
+              文本越完整，系统越容易生成可直接进入编辑页的岗位初稿。
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              "优先包含岗位职责、任职要求、地点与办公方式。",
+              "如果已有团队背景或业务目标，也可以一并粘贴。",
+              "生成失败时不清空输入，便于直接补充后再次提交。",
+            ].map((item) => (
+              <div
+                key={item}
+                className="rounded-[22px] border border-[var(--border)] bg-[var(--panel-strong)] px-4 py-4 text-sm leading-6 text-[var(--foreground-soft)]"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
     </AppShell>
   );
 }

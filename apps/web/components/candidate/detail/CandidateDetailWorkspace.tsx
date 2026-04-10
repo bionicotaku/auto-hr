@@ -22,10 +22,10 @@ export function CandidateDetailWorkspace({ candidateId }: CandidateDetailWorkspa
 
   if (detailQuery.isLoading) {
     return (
-      <AppShell title="候选人详情" description="正在加载候选人分析结果。">
+      <AppShell title="候选人详情" description="正在加载候选人分析结果。" backHref="/jobs">
         <Card className="flex min-h-[260px] items-center justify-center">
-          <div className="inline-flex items-center gap-2 text-sm text-slate-600">
-            <Spinner className="h-4 w-4 border-slate-300 border-t-slate-800" />
+          <div className="inline-flex items-center gap-2 text-sm text-[var(--foreground-soft)]">
+            <Spinner className="h-4 w-4" />
             正在加载候选人详情
           </div>
         </Card>
@@ -35,7 +35,7 @@ export function CandidateDetailWorkspace({ candidateId }: CandidateDetailWorkspa
 
   if (detailQuery.isError) {
     return (
-      <AppShell title="候选人详情" description="加载失败，请稍后重试。">
+      <AppShell title="候选人详情" description="加载失败，请稍后重试。" backHref="/jobs">
         <ErrorStateCard
           message={getJobApiErrorMessage(detailQuery.error)}
           actionLabel="重试"
@@ -57,6 +57,7 @@ export function CandidateDetailWorkspace({ candidateId }: CandidateDetailWorkspa
     <AppShell
       title={detail.normalized_profile.identity.full_name || "候选人详情"}
       description="查看原始输入、标准化信息、逐项分析结果和当前处理状态。"
+      backHref={`/jobs/${detail.job.job_id}`}
       actions={
         <Button href={`/jobs/${detail.job.job_id}`} variant="secondary">
           返回岗位

@@ -18,10 +18,10 @@ type ButtonProps = BaseProps & ButtonHTMLAttributes<HTMLButtonElement>;
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-slate-800 !text-white shadow-[0_12px_30px_rgba(15,23,42,0.12)] hover:bg-slate-900 hover:!text-white",
+    "border border-transparent bg-[var(--accent)] !text-[var(--accent-contrast)] shadow-[var(--shadow-soft)] hover:opacity-92 hover:!text-[var(--accent-contrast)]",
   secondary:
-    "bg-white text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50",
-  ghost: "bg-transparent text-slate-700 hover:bg-slate-100",
+    "border border-[var(--border)] bg-[var(--panel-strong)] text-[var(--foreground)] shadow-[var(--shadow-soft)] hover:bg-[var(--panel)]",
+  ghost: "border border-transparent bg-transparent text-[var(--foreground-soft)] hover:bg-[var(--panel-subtle)] hover:text-[var(--foreground)]",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -39,7 +39,7 @@ export function Button({
   ...props
 }: ButtonProps) {
   const classes = cn(
-    "inline-flex items-center justify-center rounded-2xl font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60",
+    "inline-flex cursor-pointer items-center justify-center rounded-full font-medium transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none",
     variantClasses[variant],
     sizeClasses[size],
     className,
