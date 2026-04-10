@@ -7,7 +7,10 @@ type CandidateImportFormProps = {
   onTextChange: (value: string) => void;
   disabledReason: string | null;
   globalError: string | null;
+  onSubmit: () => void;
   onCancel: () => void;
+  submitDisabled: boolean;
+  isSubmitting: boolean;
 };
 
 export function CandidateImportForm({
@@ -15,7 +18,10 @@ export function CandidateImportForm({
   onTextChange,
   disabledReason,
   globalError,
+  onSubmit,
   onCancel,
+  submitDisabled,
+  isSubmitting,
 }: CandidateImportFormProps) {
   return (
     <Card className="space-y-4">
@@ -42,10 +48,10 @@ export function CandidateImportForm({
       {globalError ? <p className="text-sm text-rose-600">{globalError}</p> : null}
 
       <div className="flex flex-wrap gap-3">
-        <Button size="lg" disabled>
-          生成
+        <Button size="lg" disabled={submitDisabled} onClick={onSubmit}>
+          {isSubmitting ? "生成中..." : "生成"}
         </Button>
-        <Button type="button" variant="secondary" size="lg" onClick={onCancel}>
+        <Button type="button" variant="secondary" size="lg" onClick={onCancel} disabled={isSubmitting}>
           取消
         </Button>
       </div>

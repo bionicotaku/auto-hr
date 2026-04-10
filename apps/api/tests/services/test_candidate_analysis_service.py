@@ -1,7 +1,12 @@
+from io import BytesIO
+
 import pytest
 from sqlalchemy import func, select
+from pypdf import PdfWriter
 
 from app.core.exceptions import ConflictError, DomainValidationError
+from app.core.config import get_settings
+from app.files.temp_manager import TempImportManager
 from app.models.candidate import Candidate
 from app.repositories.job_repository import JobCreateData, JobRepository, JobRubricItemCreateData
 from app.schemas.ai.candidate_rubric_result import CandidateRubricScoreItemsResult
@@ -11,6 +16,7 @@ from app.schemas.ai.candidate_standardization import (
 )
 from app.schemas.ai.candidate_supervisor import CandidateSupervisorSchema
 from app.services.candidate_analysis_service import CandidateAnalysisService
+from app.workflows.candidate_analysis.import_prepare import CandidateImportPrepareWorkflow
 
 
 class StubImportPrepareWorkflow:
@@ -31,6 +37,11 @@ class StubStandardizeWorkflow:
     def run(self, prepared_input: PreparedCandidateImportInput) -> CandidateStandardizationSchema:
         self.calls.append(prepared_input)
         return self.result
+
+
+class FailingStandardizeWorkflow:
+    def run(self, _prepared_input: PreparedCandidateImportInput):
+        raise DomainValidationError("standardize failed")
 
 
 class StubScoreItemsWorkflow:
@@ -171,6 +182,14 @@ def build_supervisor_summary() -> CandidateSupervisorSchema:
             "recommendation": "manual_review",
         }
     )
+
+
+def build_pdf_bytes() -> bytes:
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    buffer = BytesIO()
+    writer.write(buffer)
+    return buffer.getvalue()
 
 
 def create_job(db_session, *, lifecycle_status: str):
@@ -325,3 +344,33 @@ async def test_candidate_analysis_service_propagates_summarize_failure(db_sessio
 
     with pytest.raises(DomainValidationError, match="summary failed"):
         await service.analyze_candidate(job_id=job.id, raw_text_input="Candidate raw text", files=[])
+
+
+@pytest.mark.anyio
+async def test_candidate_analysis_service_cleans_temp_dir_after_standardize_failure(
+    db_session, tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setenv("TEMP_UPLOAD_DIR", str(tmp_path / "tmp"))
+    get_settings.cache_clear()
+
+    job = create_job(db_session, lifecycle_status="active")
+    settings = get_settings()
+    import_prepare_workflow = CandidateImportPrepareWorkflow(
+        job_repository=JobRepository(),
+        temp_import_manager=TempImportManager(settings),
+    )
+    service = CandidateAnalysisService(
+        db_session,
+        JobRepository(),
+        import_prepare_workflow,
+        FailingStandardizeWorkflow(),
+        StubScoreItemsWorkflow(result=None),
+        StubSummarizeWorkflow(result=build_supervisor_summary()),
+        temp_upload_dir_path=settings.temp_upload_dir_path,
+    )
+
+    with pytest.raises(DomainValidationError, match="standardize failed"):
+        await service.analyze_candidate(job_id=job.id, raw_text_input="Candidate raw text", files=[])
+
+    temp_root = settings.temp_upload_dir_path / "candidate-imports"
+    assert not temp_root.exists() or list(temp_root.iterdir()) == []

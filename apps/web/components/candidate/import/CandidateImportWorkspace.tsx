@@ -10,7 +10,7 @@ import { CandidateImportForm } from "@/components/candidate/import/CandidateImpo
 import { Card } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { getJobApiErrorMessage } from "@/lib/api/jobs";
-import { useJobCandidateImportContextQuery } from "@/lib/query/jobs";
+import { useCandidateImportMutation, useJobCandidateImportContextQuery } from "@/lib/query/jobs";
 
 type CandidateImportWorkspaceProps = {
   jobId: string;
@@ -21,18 +21,23 @@ const MAX_FILES = 4;
 export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProps) {
   const router = useRouter();
   const contextQuery = useJobCandidateImportContextQuery(jobId);
+  const importMutation = useCandidateImportMutation(jobId);
 
   const [rawTextInput, setRawTextInput] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
+  const isFormValid = useMemo(() => Boolean(rawTextInput.trim() || selectedFiles.length > 0), [
+    rawTextInput,
+    selectedFiles.length,
+  ]);
   const disabledReason = useMemo(() => {
-    if (rawTextInput.trim() || selectedFiles.length > 0) {
-      return "先确认候选人文本和文件是否完整。";
+    if (!isFormValid) {
+      return "请先填写候选人文本或上传至少一份 PDF。";
     }
-    return "请先填写候选人文本或上传至少一份 PDF。";
-  }, [rawTextInput, selectedFiles.length]);
+    return null;
+  }, [isFormValid]);
 
   function handleSelectFiles(fileList: FileList | null) {
     if (!fileList) {
@@ -71,6 +76,29 @@ export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProp
     router.push("/jobs");
   }
 
+  async function handleSubmit() {
+    if (!isFormValid || importMutation.isPending) {
+      return;
+    }
+
+    const formData = new FormData();
+    const normalizedText = rawTextInput.trim();
+    if (normalizedText) {
+      formData.append("raw_text_input", normalizedText);
+    }
+    for (const file of selectedFiles) {
+      formData.append("files", file);
+    }
+
+    try {
+      setGlobalError(null);
+      const response = await importMutation.mutateAsync(formData);
+      router.push(`/candidates/${response.candidate_id}`);
+    } catch (error) {
+      setGlobalError(getJobApiErrorMessage(error));
+    }
+  }
+
   return (
     <AppShell
       title="导入候选人"
@@ -100,7 +128,10 @@ export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProp
               }}
               disabledReason={disabledReason}
               globalError={globalError}
+              onSubmit={handleSubmit}
               onCancel={handleCancel}
+              submitDisabled={!isFormValid || importMutation.isPending}
+              isSubmitting={importMutation.isPending}
             />
             <CandidateFileDropzone
               files={selectedFiles}

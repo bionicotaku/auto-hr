@@ -168,4 +168,79 @@ describe("Candidate import page", () => {
     expect(pushMock).toHaveBeenCalledWith("/jobs");
     expect(textarea).toHaveValue("Candidate profile summary");
   });
+
+  it("submits form data and navigates to candidate detail after success", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          job_id: "job-001",
+          title: "AI Recruiter",
+          summary: "Own the recruiting workflow.",
+          lifecycle_status: "active",
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          candidate_id: "candidate-001",
+          job_id: "job-001",
+        }, 201),
+      );
+
+    renderWithProviders(
+      await CandidateImportPage({ params: Promise.resolve({ jobId: "job-001" }) }),
+    );
+
+    const textarea = await screen.findByLabelText("候选人原始文本");
+    fireEvent.change(textarea, {
+      target: { value: "Candidate profile summary" },
+    });
+
+    const submitButton = screen.getByRole("button", { name: "生成" });
+    expect(submitButton).not.toBeDisabled();
+
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/jobs/job-001/candidates/import",
+        expect.objectContaining({
+          method: "POST",
+          body: expect.any(FormData),
+        }),
+      );
+      expect(pushMock).toHaveBeenCalledWith("/candidates/candidate-001");
+    });
+  });
+
+  it("keeps entered input when import fails", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          job_id: "job-001",
+          title: "AI Recruiter",
+          summary: "Own the recruiting workflow.",
+          lifecycle_status: "active",
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({ message: "候选人导入失败" }, 422),
+      );
+
+    renderWithProviders(
+      await CandidateImportPage({ params: Promise.resolve({ jobId: "job-001" }) }),
+    );
+
+    const textarea = await screen.findByLabelText("候选人原始文本");
+    fireEvent.change(textarea, {
+      target: { value: "Candidate profile summary" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "生成" }));
+
+    expect(await screen.findByText("候选人导入失败")).toBeInTheDocument();
+    expect(textarea).toHaveValue("Candidate profile summary");
+    expect(pushMock).not.toHaveBeenCalled();
+  });
 });

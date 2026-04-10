@@ -9,9 +9,11 @@ import {
   finalizeJobDraft,
   getJobCandidateImportContext,
   getJobEdit,
+  importCandidateToJob,
   regenerateJobDraft,
 } from "@/lib/api/jobs";
 import type {
+  CandidateImportResponseDto,
   JobChatRequestDto,
   JobChatResponseDto,
   JobCandidateImportContextDto,
@@ -36,6 +38,12 @@ export function useJobCandidateImportContextQuery(jobId: string) {
     queryKey: ["job-candidate-import-context", jobId],
     queryFn: () => getJobCandidateImportContext(jobId),
     enabled: Boolean(jobId),
+  });
+}
+
+export function useCandidateImportMutation(jobId: string) {
+  return useMutation<CandidateImportResponseDto, Error, FormData>({
+    mutationFn: (payload) => importCandidateToJob(jobId, payload),
   });
 }
 

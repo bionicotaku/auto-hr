@@ -110,3 +110,8 @@ export type JobCandidateImportContextDto = {
   summary: string;
   lifecycle_status: "draft" | "active";
 };
+
+export type CandidateImportResponseDto = {
+  candidate_id: string;
+  job_id: string;
+};

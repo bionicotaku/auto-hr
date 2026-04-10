@@ -1,4 +1,5 @@
 from app.api import service_deps
+from app.core.exceptions import ConflictError, DomainValidationError
 from app.repositories.job_repository import JobRepository
 from app.schemas.ai.job_definition import (
     JobAgentEditResponseSchema,
@@ -6,6 +7,7 @@ from app.schemas.ai.job_definition import (
     JobDraftSchema,
     JobFinalizeResponseSchema,
 )
+from app.schemas.jobs import CandidateImportResponse
 from app.services.job_service import JobService
 
 
@@ -102,6 +104,16 @@ class StubFinalizeWorkflow:
         )
 
 
+class StubCandidateImportService:
+    def __init__(self, *, error: Exception | None = None):
+        self.error = error
+
+    async def import_candidate(self, **_kwargs):
+        if self.error:
+            raise self.error
+        return CandidateImportResponse(candidate_id="candidate-001", job_id="job-001")
+
+
 def override_job_service(session, _settings):
     return JobService(
         session,
@@ -112,6 +124,10 @@ def override_job_service(session, _settings):
         regenerate_workflow=StubRegenerateWorkflow(),
         finalize_workflow=StubFinalizeWorkflow(),
     )
+
+
+def override_candidate_import_service(_session, _settings):
+    return StubCandidateImportService()
 
 
 def test_create_job_from_description_returns_job_id(client, monkeypatch) -> None:
@@ -305,3 +321,48 @@ def test_candidate_import_context_endpoint_returns_not_found(client, monkeypatch
     response = client.get("/api/jobs/missing-job/candidate-import-context")
 
     assert response.status_code == 404
+
+
+def test_candidate_import_endpoint_returns_candidate_id(client, monkeypatch) -> None:
+    monkeypatch.setattr(service_deps, "get_candidate_import_service", override_candidate_import_service)
+
+    response = client.post(
+        "/api/jobs/job-001/candidates/import",
+        data={"raw_text_input": "Candidate raw text"},
+    )
+
+    assert response.status_code == 201
+    assert response.json() == {"candidate_id": "candidate-001", "job_id": "job-001"}
+
+
+def test_candidate_import_endpoint_returns_conflict_for_draft_job(client, monkeypatch) -> None:
+    monkeypatch.setattr(
+        service_deps,
+        "get_candidate_import_service",
+        lambda _session, _settings: StubCandidateImportService(
+            error=ConflictError("Job job-001 is not ready for candidate analysis.")
+        ),
+    )
+
+    response = client.post(
+        "/api/jobs/job-001/candidates/import",
+        data={"raw_text_input": "Candidate raw text"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["message"] == "Job job-001 is not ready for candidate analysis."
+
+
+def test_candidate_import_endpoint_returns_validation_error(client, monkeypatch) -> None:
+    monkeypatch.setattr(
+        service_deps,
+        "get_candidate_import_service",
+        lambda _session, _settings: StubCandidateImportService(
+            error=DomainValidationError("Candidate import requires text input or at least one PDF.")
+        ),
+    )
+
+    response = client.post("/api/jobs/job-001/candidates/import")
+
+    assert response.status_code == 422
+    assert response.json()["error"]["message"] == "Candidate import requires text input or at least one PDF."

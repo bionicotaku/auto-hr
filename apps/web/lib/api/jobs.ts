@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api/client";
 import type {
+  CandidateImportResponseDto,
   CreateJobDraftResponseDto,
   CreateJobFromDescriptionRequestDto,
   CreateJobFromFormRequestDto,
@@ -70,6 +71,13 @@ export function getJobEdit(jobId: string): Promise<JobEditResponseDto> {
 
 export function getJobCandidateImportContext(jobId: string): Promise<JobCandidateImportContextDto> {
   return apiRequest<JobCandidateImportContextDto>(`/api/jobs/${jobId}/candidate-import-context`);
+}
+
+export function importCandidateToJob(jobId: string, payload: FormData): Promise<CandidateImportResponseDto> {
+  return apiRequest<CandidateImportResponseDto>(`/api/jobs/${jobId}/candidates/import`, {
+    method: "POST",
+    body: payload,
+  });
 }
 
 export function chatJobDraft(jobId: string, payload: JobChatRequestDto): Promise<JobChatResponseDto> {

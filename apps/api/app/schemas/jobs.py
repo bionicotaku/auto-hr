@@ -178,6 +178,11 @@ class JobCandidateImportContextResponse(BaseModel):
     lifecycle_status: Literal["draft", "active"]
 
 
+class CandidateImportResponse(BaseModel):
+    candidate_id: str
+    job_id: str
+
+
 class JobEditResponse(BaseModel):
     id: str
     lifecycle_status: Literal["draft", "active"]

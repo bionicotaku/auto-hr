@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, File, Form, Response, UploadFile, status
 
 from app.api import service_deps
 from app.api.deps import AppSettings, DbSession
 from app.schemas.jobs import (
+    CandidateImportResponse,
     CreateJobDraftResponse,
     CreateJobFromDescriptionRequest,
     CreateJobFromFormRequest,
@@ -54,6 +55,26 @@ def get_job_candidate_import_context(
 ) -> JobCandidateImportContextResponse:
     service = service_deps.get_job_service(session, settings)
     return service.get_candidate_import_context(job_id)
+
+
+@router.post(
+    "/{job_id}/candidates/import",
+    response_model=CandidateImportResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_candidate_to_job(
+    job_id: str,
+    session: DbSession,
+    settings: AppSettings,
+    raw_text_input: str | None = Form(default=None),
+    files: list[UploadFile] | None = File(default=None),
+) -> CandidateImportResponse:
+    service = service_deps.get_candidate_import_service(session, settings)
+    return await service.import_candidate(
+        job_id=job_id,
+        raw_text_input=raw_text_input,
+        files=files or [],
+    )
 
 
 @router.post("/{job_id}/chat", response_model=JobChatResponse)

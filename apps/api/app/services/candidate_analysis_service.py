@@ -1,4 +1,6 @@
+import shutil
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from fastapi import UploadFile
@@ -38,6 +40,7 @@ class CandidateAnalysisService:
         standardize_workflow: CandidateStandardizeWorkflow,
         score_items_workflow: CandidateScoreItemsWorkflow,
         summarize_workflow: CandidateSummarizeWorkflow,
+        temp_upload_dir_path: Path | None = None,
     ) -> None:
         self.session = session
         self.job_repository = job_repository
@@ -45,6 +48,7 @@ class CandidateAnalysisService:
         self.standardize_workflow = standardize_workflow
         self.score_items_workflow = score_items_workflow
         self.summarize_workflow = summarize_workflow
+        self.temp_upload_dir_path = temp_upload_dir_path
 
     async def analyze_candidate(
         self,
@@ -60,33 +64,37 @@ class CandidateAnalysisService:
             raw_text_input=raw_text_input,
             files=files,
         )
-        standardized_candidate = self.standardize_workflow.run(prepared_input)
-        rubric_items = [self._serialize_rubric_item(item) for item in job.rubric_items]
-        rubric_score_items = await self.score_items_workflow.run(
-            PreparedRubricScoringInput(
+        try:
+            standardized_candidate = self.standardize_workflow.run(prepared_input)
+            rubric_items = [self._serialize_rubric_item(item) for item in job.rubric_items]
+            rubric_score_items = await self.score_items_workflow.run(
+                PreparedRubricScoringInput(
+                    prepared_input=prepared_input,
+                    standardized_candidate=standardized_candidate,
+                    rubric_items=rubric_items,
+                )
+            )
+            hard_requirement_overall = self._compute_hard_requirement_overall(rubric_score_items)
+            overall_score_5 = self._compute_overall_score_5(rubric_score_items, rubric_items)
+            overall_score_percent = round(overall_score_5 / 5 * 100, 2)
+            supervisor_summary = self.summarize_workflow.run(
+                job_title=job.title,
+                job_summary=job.summary,
+                standardized_candidate=standardized_candidate,
+                rubric_score_items=rubric_score_items,
+                hard_requirement_overall=hard_requirement_overall,
+                overall_score_5=overall_score_5,
+                overall_score_percent=overall_score_percent,
+            )
+            return CandidateAnalysisBundle(
                 prepared_input=prepared_input,
                 standardized_candidate=standardized_candidate,
-                rubric_items=rubric_items,
+                rubric_score_items=rubric_score_items,
+                supervisor_summary=supervisor_summary,
             )
-        )
-        hard_requirement_overall = self._compute_hard_requirement_overall(rubric_score_items)
-        overall_score_5 = self._compute_overall_score_5(rubric_score_items, rubric_items)
-        overall_score_percent = round(overall_score_5 / 5 * 100, 2)
-        supervisor_summary = self.summarize_workflow.run(
-            job_title=job.title,
-            job_summary=job.summary,
-            standardized_candidate=standardized_candidate,
-            rubric_score_items=rubric_score_items,
-            hard_requirement_overall=hard_requirement_overall,
-            overall_score_5=overall_score_5,
-            overall_score_percent=overall_score_percent,
-        )
-        return CandidateAnalysisBundle(
-            prepared_input=prepared_input,
-            standardized_candidate=standardized_candidate,
-            rubric_score_items=rubric_score_items,
-            supervisor_summary=supervisor_summary,
-        )
+        except Exception:
+            self._cleanup_temp_request(prepared_input.temp_request_id)
+            raise
 
     def _get_active_job(self, job_id: str):
         try:
@@ -142,3 +150,8 @@ class CandidateAnalysisService:
             "agent_prompt_text": rubric_item.agent_prompt_text,
             "evidence_guidance_text": rubric_item.evidence_guidance_text,
         }
+
+    def _cleanup_temp_request(self, request_id: str) -> None:
+        if self.temp_upload_dir_path is None:
+            return
+        shutil.rmtree(self.temp_upload_dir_path / "candidate-imports" / request_id, ignore_errors=True)
