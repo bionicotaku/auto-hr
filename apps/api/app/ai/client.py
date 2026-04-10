@@ -54,6 +54,36 @@ class OpenAIResponsesClient:
             raise ValueError("Responses API returned non-object JSON.")
         return parsed
 
+    def generate_structured_output_from_inputs(
+        self,
+        *,
+        inputs: list[dict[str, Any]],
+        schema_name: str,
+        schema: dict[str, Any],
+    ) -> dict[str, Any]:
+        response = self.client.responses.create(
+            model=self.settings.openai_model,
+            reasoning={"effort": self.settings.openai_reasoning},
+            input=inputs,
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": schema_name,
+                    "schema": self._to_openai_json_schema(schema),
+                    "strict": True,
+                }
+            },
+        )
+
+        output_text = response.output_text
+        if not output_text:
+            raise ValueError("Responses API returned empty output_text.")
+
+        parsed = json.loads(output_text)
+        if not isinstance(parsed, dict):
+            raise ValueError("Responses API returned non-object JSON.")
+        return parsed
+
     def _to_openai_json_schema(self, schema: dict[str, Any]) -> dict[str, Any]:
         def normalize(node: Any) -> Any:
             if isinstance(node, dict):
