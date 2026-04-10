@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Providers } from "@/app/providers";
 import JobDetailPage from "@/app/jobs/[jobId]/page";
 import JobsPage from "@/app/jobs/page";
+import { buildApiUrl } from "@/lib/api/client";
 
 const pushMock = vi.fn();
 const replaceMock = vi.fn();
@@ -170,7 +171,7 @@ describe("Job detail pages", () => {
 
     await waitFor(() => {
       expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(
-        "/api/jobs/job-001/candidates?sort=score_asc&status=all",
+        buildApiUrl("/api/jobs/job-001/candidates?sort=score_asc&status=all"),
       );
     });
 
@@ -178,7 +179,7 @@ describe("Job detail pages", () => {
     fireEvent.click(screen.getByRole("button", { name: "高匹配" }));
     await waitFor(() => {
       expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(
-        "/api/jobs/job-001/candidates?sort=score_asc&status=all&tags=%E9%AB%98%E5%8C%B9%E9%85%8D",
+        buildApiUrl("/api/jobs/job-001/candidates?sort=score_asc&status=all&tags=%E9%AB%98%E5%8C%B9%E9%85%8D"),
       );
     });
 
@@ -226,7 +227,7 @@ describe("Job detail pages", () => {
 
     await waitFor(() => {
       expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(
-        "/api/jobs/job-001/candidates?sort=score_desc&status=all&q=Ada",
+        buildApiUrl("/api/jobs/job-001/candidates?sort=score_desc&status=all&q=Ada"),
       );
     });
     expect(replaceMock).not.toHaveBeenCalled();
