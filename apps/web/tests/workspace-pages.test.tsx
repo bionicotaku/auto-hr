@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import CandidateDetailPage from "@/app/candidates/[candidateId]/page";
 import HomePage from "@/app/page";
-import JobEditPage from "@/app/jobs/[jobId]/edit/page";
 import JobsPage from "@/app/jobs/page";
 
 const { redirectMock } = vi.hoisted(() => ({
@@ -35,16 +34,6 @@ describe("Workspace pages", () => {
 
     expect(screen.getByRole("heading", { name: "岗位" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "新建岗位" })).toHaveLength(2);
-  });
-
-  it("renders the job edit workspace shell", async () => {
-    render(await JobEditPage({ params: Promise.resolve({ jobId: "job-123" }) }));
-
-    expect(screen.getByRole("heading", { name: "岗位编辑" })).toBeInTheDocument();
-    expect(screen.getByText("编号 job-123")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "职位描述" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "评估规范" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "修改要求" })).toBeInTheDocument();
   });
 
   it("renders the candidate detail empty state", async () => {

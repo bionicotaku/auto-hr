@@ -3,6 +3,12 @@ import type {
   CreateJobDraftResponseDto,
   CreateJobFromDescriptionRequestDto,
   CreateJobFromFormRequestDto,
+  JobChatRequestDto,
+  JobChatResponseDto,
+  JobEditResponseDto,
+  JobGeneratedContentRequestDto,
+  JobGeneratedContentResponseDto,
+  JobRegenerateRequestDto,
 } from "@/lib/api/types";
 import { ApiError } from "@/lib/api/types";
 
@@ -55,6 +61,37 @@ export async function createJobFromForm(payload: CreateJobFromFormRequestDto): P
   return normalizeJobDraftResponse(response);
 }
 
+export function getJobEdit(jobId: string): Promise<JobEditResponseDto> {
+  return apiRequest<JobEditResponseDto>(`/api/jobs/${jobId}/edit`);
+}
+
+export function chatJobDraft(jobId: string, payload: JobChatRequestDto): Promise<JobChatResponseDto> {
+  return apiRequest<JobChatResponseDto>(`/api/jobs/${jobId}/chat`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function agentEditJobDraft(
+  jobId: string,
+  payload: JobGeneratedContentRequestDto,
+): Promise<JobGeneratedContentResponseDto> {
+  return apiRequest<JobGeneratedContentResponseDto>(`/api/jobs/${jobId}/agent-edit`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function regenerateJobDraft(
+  jobId: string,
+  payload: JobRegenerateRequestDto,
+): Promise<JobGeneratedContentResponseDto> {
+  return apiRequest<JobGeneratedContentResponseDto>(`/api/jobs/${jobId}/regenerate`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function getJobApiErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     return error.message;
@@ -66,4 +103,3 @@ export function getJobApiErrorMessage(error: unknown) {
 
   return "请求失败，请稍后重试。";
 }
-

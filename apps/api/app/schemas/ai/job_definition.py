@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -44,3 +44,22 @@ class JobDraftSchema(BaseModel):
     description_text: str = Field(min_length=1, max_length=12000)
     structured_info_json: JobStructuredInfoSchema
     rubric_items: list[JobRubricItemSchema] = Field(min_length=1, max_length=12)
+
+
+class JobChatResponseSchema(BaseModel):
+    reply_text: str = Field(min_length=1, max_length=4000)
+
+
+class JobAgentEditResponseSchema(BaseModel):
+    description_text: str = Field(min_length=1, max_length=12000)
+    rubric_items: list[JobRubricItemSchema] = Field(min_length=1, max_length=12)
+
+
+def rubric_items_to_json(items: list[JobRubricItemSchema | dict[str, Any]]) -> list[dict[str, Any]]:
+    serialized: list[dict[str, Any]] = []
+    for item in items:
+        if isinstance(item, JobRubricItemSchema):
+            serialized.append(item.model_dump(mode="json"))
+        else:
+            serialized.append(item)
+    return serialized

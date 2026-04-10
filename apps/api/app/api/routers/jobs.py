@@ -6,7 +6,12 @@ from app.schemas.jobs import (
     CreateJobDraftResponse,
     CreateJobFromDescriptionRequest,
     CreateJobFromFormRequest,
+    JobAgentEditRequest,
+    JobChatRequest,
+    JobChatResponse,
     JobEditResponse,
+    JobGeneratedContentResponse,
+    JobRegenerateRequest,
 )
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -36,6 +41,39 @@ def create_job_from_form(
 def get_job_edit(job_id: str, session: DbSession, settings: AppSettings) -> JobEditResponse:
     service = service_deps.get_job_service(session, settings)
     return service.get_job_edit_payload(job_id)
+
+
+@router.post("/{job_id}/chat", response_model=JobChatResponse)
+def chat_on_job_draft(
+    job_id: str,
+    payload: JobChatRequest,
+    session: DbSession,
+    settings: AppSettings,
+) -> JobChatResponse:
+    service = service_deps.get_job_service(session, settings)
+    return service.chat_on_draft(job_id, payload)
+
+
+@router.post("/{job_id}/agent-edit", response_model=JobGeneratedContentResponse)
+def agent_edit_job_draft(
+    job_id: str,
+    payload: JobAgentEditRequest,
+    session: DbSession,
+    settings: AppSettings,
+) -> JobGeneratedContentResponse:
+    service = service_deps.get_job_service(session, settings)
+    return service.agent_edit_draft(job_id, payload)
+
+
+@router.post("/{job_id}/regenerate", response_model=JobGeneratedContentResponse)
+def regenerate_job_draft(
+    job_id: str,
+    payload: JobRegenerateRequest,
+    session: DbSession,
+    settings: AppSettings,
+) -> JobGeneratedContentResponse:
+    service = service_deps.get_job_service(session, settings)
+    return service.regenerate_draft(job_id, payload)
 
 
 @router.delete("/{job_id}/draft", status_code=status.HTTP_204_NO_CONTENT)

@@ -1,18 +1,27 @@
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import DomainValidationError, NotFoundError
+from app.core.exceptions import ConflictError, DomainValidationError, NotFoundError
 from app.models.job import Job
 from app.repositories.job_repository import (
     JobCreateData,
     JobRepository,
     JobRubricItemCreateData,
 )
-from app.schemas.ai.job_definition import JobDraftSchema
+from app.schemas.ai.job_definition import (
+    JobAgentEditResponseSchema,
+    JobChatResponseSchema,
+    JobDraftSchema,
+)
 from app.schemas.jobs import (
     CreateJobFromDescriptionRequest,
     CreateJobFromFormRequest,
     CreateJobDraftResponse,
+    JobAgentEditRequest,
+    JobChatRequest,
+    JobChatResponse,
     JobEditResponse,
+    JobGeneratedContentResponse,
+    JobRegenerateRequest,
 )
 from app.workflows.job_definition.create_draft import JobDefinitionCreateDraftWorkflow
 
@@ -23,10 +32,16 @@ class JobService:
         session: Session,
         job_repository: JobRepository,
         draft_workflow: JobDefinitionCreateDraftWorkflow,
+        chat_workflow=None,
+        agent_edit_workflow=None,
+        regenerate_workflow=None,
     ) -> None:
         self.session = session
         self.job_repository = job_repository
         self.draft_workflow = draft_workflow
+        self.chat_workflow = chat_workflow
+        self.agent_edit_workflow = agent_edit_workflow
+        self.regenerate_workflow = regenerate_workflow
 
     def create_draft_from_description(
         self, payload: CreateJobFromDescriptionRequest
@@ -64,6 +79,48 @@ class JobService:
             if not deleted:
                 raise NotFoundError(f"Draft job {job_id} not found.")
 
+    def chat_on_draft(self, job_id: str, payload: JobChatRequest) -> JobChatResponse:
+        job = self._get_draft_job(job_id)
+        if self.chat_workflow is None:
+            raise RuntimeError("Job chat workflow is not configured.")
+
+        response = self.chat_workflow.run(
+            description_text=payload.description_text,
+            rubric_items=[item.model_dump(mode="json", exclude={"id"}) for item in payload.rubric_items],
+            recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
+            user_input=payload.user_input,
+        )
+        return JobChatResponse(reply_text=response.reply_text)
+
+    def agent_edit_draft(self, job_id: str, payload: JobAgentEditRequest) -> JobGeneratedContentResponse:
+        job = self._get_draft_job(job_id)
+        if self.agent_edit_workflow is None:
+            raise RuntimeError("Job agent edit workflow is not configured.")
+
+        response = self.agent_edit_workflow.run(
+            description_text=payload.description_text,
+            rubric_items=[item.model_dump(mode="json", exclude={"id"}) for item in payload.rubric_items],
+            recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
+            user_input=payload.user_input,
+        )
+        return self._to_generated_content_response(response)
+
+    def regenerate_draft(self, job_id: str, payload: JobRegenerateRequest) -> JobGeneratedContentResponse:
+        job = self._get_draft_job(job_id)
+        if self.regenerate_workflow is None:
+            raise RuntimeError("Job regenerate workflow is not configured.")
+
+        response = self.regenerate_workflow.run(
+            original_description_input=job.original_description_input,
+            original_form_input_json=job.original_form_input_json,
+            title=job.title,
+            summary=job.summary,
+            structured_info_json=job.structured_info_json,
+            history_summary=payload.history_summary,
+            recent_messages=[message.model_dump(mode="json") for message in payload.recent_messages],
+        )
+        return self._to_generated_content_response(response)
+
     def _persist_draft(
         self,
         *,
@@ -99,6 +156,16 @@ class JobService:
         except Exception as exc:
             raise DomainValidationError("Failed to create job draft.") from exc
 
+    def _get_draft_job(self, job_id: str) -> Job:
+        try:
+            job = self.job_repository.get_job_for_edit(self.session, job_id)
+        except LookupError as exc:
+            raise NotFoundError(f"Job {job_id} not found.") from exc
+
+        if job.lifecycle_status != "draft":
+            raise ConflictError(f"Job {job_id} is not editable.")
+        return job
+
     def _to_job_edit_response(self, job: Job) -> JobEditResponse:
         return JobEditResponse(
             id=job.id,
@@ -129,5 +196,26 @@ class JobService:
                     "evidence_guidance_text": item.evidence_guidance_text,
                 }
                 for item in sorted(job.rubric_items, key=lambda rubric: rubric.sort_order)
+            ],
+        )
+
+    def _to_generated_content_response(
+        self, response: JobAgentEditResponseSchema
+    ) -> JobGeneratedContentResponse:
+        return JobGeneratedContentResponse(
+            description_text=response.description_text,
+            rubric_items=[
+                {
+                    "sort_order": item.sort_order,
+                    "name": item.name,
+                    "description": item.description,
+                    "criterion_type": item.criterion_type,
+                    "weight_input": item.weight_input,
+                    "weight_normalized": item.weight_normalized,
+                    "scoring_standard_json": item.scoring_standard_json,
+                    "agent_prompt_text": item.agent_prompt_text,
+                    "evidence_guidance_text": item.evidence_guidance_text,
+                }
+                for item in response.rubric_items
             ],
         )

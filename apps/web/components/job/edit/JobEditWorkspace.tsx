@@ -1,7 +1,23 @@
+ "use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+
 import { AppShell } from "@/components/layout/AppShell";
-import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Textarea } from "@/components/ui/Textarea";
+import { Spinner } from "@/components/ui/Spinner";
+import { getJobApiErrorMessage } from "@/lib/api/jobs";
+import type { JobEditorMessageDto, JobRubricItemDto } from "@/lib/api/types";
+import {
+  useJobAgentEditMutation,
+  useJobChatMutation,
+  useJobEditQuery,
+  useJobRegenerateMutation,
+} from "@/lib/query/jobs";
+
+import { JobAiChatPanel } from "./JobAiChatPanel";
+import { JobDescriptionEditor } from "./JobDescriptionEditor";
+import { JobEditActionBar } from "./JobEditActionBar";
+import { JobRubricEditor } from "./JobRubricEditor";
 
 type JobEditWorkspaceProps = {
   jobId: string;
@@ -23,98 +39,223 @@ const rubricExamples = [
 ];
 
 export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
+  const editQuery = useJobEditQuery(jobId);
+  const chatMutation = useJobChatMutation(jobId);
+  const agentMutation = useJobAgentEditMutation(jobId);
+  const regenerateMutation = useJobRegenerateMutation(jobId);
+
+  const [descriptionText, setDescriptionText] = useState("");
+  const [rubricItems, setRubricItems] = useState<JobRubricItemDto[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState<JobEditorMessageDto[]>([]);
+  const [panelError, setPanelError] = useState<string | null>(null);
+  const initializedJobIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!editQuery.data || initializedJobIdRef.current === editQuery.data.id) {
+      return;
+    }
+
+    initializedJobIdRef.current = editQuery.data.id;
+    setDescriptionText(editQuery.data.description_text);
+    setRubricItems(editQuery.data.rubric_items);
+    setMessages(
+      editQuery.data.editor_recent_messages_json.flatMap((message) => {
+        if (
+          typeof message === "object" &&
+          message !== null &&
+          "role" in message &&
+          "content" in message &&
+          typeof message.role === "string" &&
+          typeof message.content === "string"
+        ) {
+          return [{ role: message.role as JobEditorMessageDto["role"], content: message.content }];
+        }
+        return [];
+      }),
+    );
+    setPanelError(null);
+  }, [editQuery.data]);
+
+  const isBusy = chatMutation.isPending || agentMutation.isPending || regenerateMutation.isPending;
+
+  const headerActions = useMemo(
+    () => (
+      <>
+        <span className="rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700 ring-1 ring-amber-200">
+          草稿
+        </span>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600 ring-1 ring-slate-200">
+          编号 {jobId}
+        </span>
+      </>
+    ),
+    [jobId],
+  );
+
+  function buildRecentMessages() {
+    return messages.slice(-5);
+  }
+
+  function updateRubricItem<K extends keyof JobRubricItemDto>(
+    index: number,
+    field: K,
+    value: JobRubricItemDto[K],
+  ) {
+    setRubricItems((current) =>
+      current.map((item, itemIndex) => {
+        if (itemIndex !== index) {
+          return item;
+        }
+        return { ...item, [field]: value };
+      }),
+    );
+  }
+
+  async function handleChatSubmit() {
+    const trimmedInput = chatInput.trim();
+    if (!trimmedInput) {
+      setPanelError("请先输入修改要求。");
+      return;
+    }
+
+    try {
+      setPanelError(null);
+      const response = await chatMutation.mutateAsync({
+        description_text: descriptionText,
+        rubric_items: rubricItems,
+        recent_messages: buildRecentMessages(),
+        user_input: trimmedInput,
+      });
+      setMessages((current) => [
+        ...current,
+        { role: "user", content: trimmedInput },
+        { role: "assistant", content: response.reply_text },
+      ]);
+      setChatInput("");
+    } catch (error) {
+      setPanelError(getJobApiErrorMessage(error));
+    }
+  }
+
+  async function handleAgentSubmit() {
+    const trimmedInput = chatInput.trim();
+    if (!trimmedInput) {
+      setPanelError("请先输入修改要求。");
+      return;
+    }
+
+    try {
+      setPanelError(null);
+      const response = await agentMutation.mutateAsync({
+        description_text: descriptionText,
+        rubric_items: rubricItems,
+        recent_messages: buildRecentMessages(),
+        user_input: trimmedInput,
+      });
+      setDescriptionText(response.description_text);
+      setRubricItems(response.rubric_items);
+      setMessages((current) => [
+        ...current,
+        { role: "user", content: trimmedInput },
+        { role: "assistant", content: "已应用新的岗位定义。" },
+      ]);
+      setChatInput("");
+    } catch (error) {
+      setPanelError(getJobApiErrorMessage(error));
+    }
+  }
+
+  async function handleRegenerate() {
+    try {
+      setPanelError(null);
+      const response = await regenerateMutation.mutateAsync({
+        recent_messages: buildRecentMessages(),
+        history_summary: null,
+      });
+      setDescriptionText(response.description_text);
+      setRubricItems(response.rubric_items);
+      setMessages((current) => [...current, { role: "system", content: "已重新生成当前岗位定义。" }]);
+    } catch (error) {
+      setPanelError(getJobApiErrorMessage(error));
+    }
+  }
+
   return (
     <AppShell
       title="岗位编辑"
       description="继续完善职位描述与评估规范。"
-      actions={
-        <>
-          <Button href="/jobs" variant="secondary">
-            返回岗位
-          </Button>
-          <Button disabled>完成</Button>
-        </>
-      }
+      actions={headerActions}
     >
       <Card className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-slate-900">岗位草稿</p>
-          <p className="text-sm leading-6 text-slate-600">确认描述与评估规范后，再完成当前岗位。</p>
+          <p className="text-sm font-semibold text-slate-900">
+            {editQuery.data?.title ?? "岗位草稿"}
+          </p>
+          <p className="text-sm leading-6 text-slate-600">
+            {editQuery.data?.summary ?? "确认描述与评估规范后，再完成当前岗位。"}
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
-          <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700 ring-1 ring-amber-200">草稿</span>
-          <span className="rounded-full bg-slate-100 px-3 py-1 ring-1 ring-slate-200">编号 {jobId}</span>
-        </div>
+        {editQuery.data?.structured_info_json ? (
+          <div className="text-sm leading-6 text-slate-600">
+            <span>{String(editQuery.data.structured_info_json.location ?? "地点待补充")}</span>
+          </div>
+        ) : null}
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr_0.85fr]">
-        <Card className="space-y-4">
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold tracking-tight text-slate-950">职位描述</h2>
-            <p className="text-sm leading-6 text-slate-600">在这里整理岗位职责、任职要求和工作方式。</p>
+      {editQuery.isLoading ? (
+        <Card className="flex min-h-[240px] items-center justify-center">
+          <div className="inline-flex items-center gap-2 text-sm text-slate-600">
+            <Spinner className="h-4 w-4 border-slate-300 border-t-slate-800" />
+            正在加载岗位草稿
           </div>
-          <Textarea
-            aria-label="职位描述编辑区"
-            className="min-h-[420px] bg-slate-50"
-            defaultValue="岗位描述将在这里编辑。"
-            readOnly
+        </Card>
+      ) : editQuery.isError ? (
+        <Card className="space-y-2">
+          <h2 className="text-lg font-semibold tracking-tight text-slate-950">加载失败</h2>
+          <p className="text-sm leading-6 text-slate-600">{getJobApiErrorMessage(editQuery.error)}</p>
+        </Card>
+      ) : (
+        <>
+          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr_0.85fr]">
+            <JobDescriptionEditor
+              value={descriptionText}
+              onChange={setDescriptionText}
+              disabled={isBusy}
+            />
+            <JobRubricEditor
+              items={rubricItems.length > 0 ? rubricItems : rubricExamples.map((item, index) => ({
+                sort_order: index + 1,
+                name: item.title,
+                description: item.detail,
+                criterion_type: "weighted",
+                weight_input: 10,
+                weight_normalized: 0.1,
+                scoring_standard_json: {},
+                agent_prompt_text: "",
+                evidence_guidance_text: "",
+              }))}
+              onItemChange={updateRubricItem}
+              disabled={isBusy}
+            />
+            <JobAiChatPanel
+              messages={messages}
+              inputValue={chatInput}
+              errorMessage={panelError}
+              isChatPending={chatMutation.isPending}
+              isAgentPending={agentMutation.isPending}
+              onInputChange={setChatInput}
+              onChatSubmit={handleChatSubmit}
+              onAgentSubmit={handleAgentSubmit}
+            />
+          </div>
+
+          <JobEditActionBar
+            isRegeneratePending={regenerateMutation.isPending}
+            onRegenerate={handleRegenerate}
           />
-        </Card>
-
-        <Card className="space-y-4">
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold tracking-tight text-slate-950">评估规范</h2>
-            <p className="text-sm leading-6 text-slate-600">把需要重点判断的能力、必须项和评分标准整理清楚。</p>
-          </div>
-
-          <div className="space-y-3">
-            {rubricExamples.map((item) => (
-              <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                <p className="mt-1 text-sm leading-6 text-slate-600">{item.detail}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="space-y-4">
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold tracking-tight text-slate-950">修改要求</h2>
-            <p className="text-sm leading-6 text-slate-600">直接输入你希望调整的内容，建议会显示在这里。</p>
-          </div>
-
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
-            暂无消息。
-          </div>
-
-          <Textarea
-            aria-label="修改要求输入框"
-            className="min-h-[180px] bg-slate-50"
-            placeholder="例如：把必须项单独列出，并弱化不必要的加分要求。"
-            disabled
-          />
-
-          <Button className="w-full" disabled>
-            发送要求
-          </Button>
-        </Card>
-      </div>
-
-      <Card className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold tracking-tight text-slate-950">操作</h2>
-          <p className="text-sm leading-6 text-slate-600">检查内容后，再重新生成或完成当前岗位。</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <Button variant="secondary" disabled>
-            重新生成
-          </Button>
-          <Button href="/jobs" variant="ghost">
-            取消
-          </Button>
-          <Button disabled>完成</Button>
-        </div>
-      </Card>
+        </>
+      )}
     </AppShell>
   );
 }

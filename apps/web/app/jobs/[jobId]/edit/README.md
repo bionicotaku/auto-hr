@@ -1,9 +1,8 @@
 # apps/web/app/jobs/[jobId]/edit
 
-Job draft 编辑承接页目录。
+Job 编辑页路由目录。
 
 职责：
 
 - 接收 `/jobs/[jobId]/edit` 跳转
-- 在 Phase 4 前只提供最小占位
-
+- 承接 Job 编辑页页面级编排
