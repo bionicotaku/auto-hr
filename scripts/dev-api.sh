@@ -2,5 +2,10 @@
 
 set -euo pipefail
 
-echo "[dev-api] Phase 0 placeholder"
-echo "[dev-api] apps/api runtime will be added in Phase 1"
+if [ ! -x "./.venv/bin/python" ]; then
+  echo "[dev-api] missing ./.venv/bin/python, run ./scripts/bootstrap.sh first"
+  exit 1
+fi
+
+cd apps/api
+../../.venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

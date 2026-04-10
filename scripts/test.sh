@@ -2,5 +2,10 @@
 
 set -euo pipefail
 
-echo "[test] Phase 0 placeholder"
-echo "[test] root test entry is wired; API and web tests will be added in later phases"
+if [ ! -x "./.venv/bin/python" ]; then
+  echo "[test] missing ./.venv/bin/python, run ./scripts/bootstrap.sh first"
+  exit 1
+fi
+
+echo "[test] running backend tests"
+./.venv/bin/python -m pytest apps/api/tests

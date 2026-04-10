@@ -18,7 +18,8 @@
 
 ## 文档目录
 
-项目设计与实施文档统一放在 [`docs/`](/Users/evan/Downloads/auto-hr/docs/README.md)。
+设计、架构、规范、实施类文档统一放在 [`docs/`](/Users/evan/Downloads/auto-hr/docs/README.md)。
+各工程目录自己的 `README.md` 保留在目录内部，用于说明该目录职责、关键文件和局部约束。
 
 - [文档索引](/Users/evan/Downloads/auto-hr/docs/README.md)
 - [工程实现文档](/Users/evan/Downloads/auto-hr/docs/工程实现文档.md)

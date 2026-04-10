@@ -2,5 +2,10 @@
 
 set -euo pipefail
 
-echo "[lint] Phase 0 placeholder"
-echo "[lint] shared lint entry is wired; concrete frontend/backend linters will be added in later phases"
+if [ ! -x "./.venv/bin/python" ]; then
+  echo "[lint] missing ./.venv/bin/python, run ./scripts/bootstrap.sh first"
+  exit 1
+fi
+
+echo "[lint] running backend syntax checks"
+./.venv/bin/python -m compileall apps/api/app apps/api/tests

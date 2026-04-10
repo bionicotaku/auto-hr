@@ -1,6 +1,11 @@
 # 文档索引
 
-项目文档统一放在当前 `docs/` 目录。
+当前 `docs/` 目录只放项目级设计、架构、规范和实施文档。
+
+说明：
+
+- 各工程目录自己的 `README.md` 保留在各自目录下，作为就地导航文档
+- `docs/` 不再存放目录占位 README
 
 ## 核心文档
 
@@ -17,11 +22,3 @@
 - [页面路由与前端状态设计](/Users/evan/Downloads/auto-hr/docs/页面路由与前端状态设计.md)
 - [数据模型设计文档](/Users/evan/Downloads/auto-hr/docs/数据模型设计文档.md)
 - [AI工作流设计](/Users/evan/Downloads/auto-hr/docs/AI工作流设计.md)
-
-## 占位说明文档
-
-- [apps/api README](/Users/evan/Downloads/auto-hr/docs/placeholders/apps-api-README.md)
-- [apps/web README](/Users/evan/Downloads/auto-hr/docs/placeholders/apps-web-README.md)
-- [packages/config README](/Users/evan/Downloads/auto-hr/docs/placeholders/packages-config-README.md)
-- [packages/ui README](/Users/evan/Downloads/auto-hr/docs/placeholders/packages-ui-README.md)
-- [data README](/Users/evan/Downloads/auto-hr/docs/placeholders/data-README.md)
