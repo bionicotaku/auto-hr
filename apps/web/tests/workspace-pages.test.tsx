@@ -87,9 +87,78 @@ describe("Workspace pages", () => {
   });
 
   it("renders the candidate detail empty state", async () => {
-    render(await CandidateDetailPage({ params: Promise.resolve({ candidateId: "cand-001" }) }));
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          candidate_id: "cand-001",
+          job: {
+            job_id: "job-001",
+            title: "AI Recruiter",
+          },
+          raw_input: {
+            raw_text_input: "Candidate raw input",
+            documents: [],
+          },
+          normalized_profile: {
+            identity: {
+              full_name: "Ada Lovelace",
+              current_title: "Recruiting Lead",
+              current_company: "Auto HR",
+              location_text: "Remote",
+              email: "ada@example.com",
+              phone: "123456",
+              linkedin_url: "https://linkedin.example/ada",
+            },
+            profile_summary: {
+              professional_summary_raw: "Built hiring systems",
+              professional_summary_normalized: "Built hiring systems for global teams",
+              years_of_total_experience: 8,
+              years_of_relevant_experience: 6,
+              seniority_level: "Lead",
+            },
+            work_experiences: [],
+            educations: [],
+            skills: {
+              skills_raw: ["Recruiting"],
+              skills_normalized: ["Recruiting Ops"],
+            },
+            employment_preferences: {},
+            application_answers: [],
+            additional_information: {},
+          },
+          rubric_results: [],
+          supervisor_summary: {
+            hard_requirement_overall: "all_pass",
+            overall_score_5: 4.5,
+            overall_score_percent: 90,
+            ai_summary: "Strong recruiting operator",
+            evidence_points: ["Built structured interview loops"],
+            recommendation: "advance",
+            tags: [],
+          },
+          action_context: {
+            current_status: "pending",
+            feedbacks: [],
+            email_drafts: [],
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    render(
+      <Providers>
+        {await CandidateDetailPage({ params: Promise.resolve({ candidateId: "cand-001" }) })}
+      </Providers>,
+    );
 
     expect(screen.getByRole("heading", { name: "候选人详情" })).toBeInTheDocument();
-    expect(screen.getByText("候选人 cand-001")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Ada Lovelace" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "原始输入" })).toBeInTheDocument();
+    });
   });
 });

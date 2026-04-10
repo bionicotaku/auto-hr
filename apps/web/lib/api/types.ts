@@ -130,6 +130,117 @@ export type CandidateImportResponseDto = {
   job_id: string;
 };
 
+export type CandidateDetailJobContextDto = {
+  job_id: string;
+  title: string;
+};
+
+export type CandidateDetailRawDocumentDto = {
+  id: string;
+  document_type: "resume" | "other";
+  filename: string;
+  storage_path: string;
+  mime_type: string;
+  extracted_text: string;
+  page_count: number | null;
+  upload_order: number;
+};
+
+export type CandidateDetailRawInputDto = {
+  raw_text_input: string | null;
+  documents: CandidateDetailRawDocumentDto[];
+};
+
+export type CandidateDetailIdentityDto = {
+  full_name: string;
+  current_title: string | null;
+  current_company: string | null;
+  location_text: string | null;
+  email: string | null;
+  phone: string | null;
+  linkedin_url: string | null;
+};
+
+export type CandidateDetailProfileSummaryDto = {
+  professional_summary_raw: string | null;
+  professional_summary_normalized: string | null;
+  years_of_total_experience: number | null;
+  years_of_relevant_experience: number | null;
+  seniority_level: string | null;
+};
+
+export type CandidateDetailNormalizedProfileDto = {
+  identity: CandidateDetailIdentityDto;
+  profile_summary: CandidateDetailProfileSummaryDto;
+  work_experiences: Array<Record<string, unknown>>;
+  educations: Array<Record<string, unknown>>;
+  skills: Record<string, unknown>;
+  employment_preferences: Record<string, unknown>;
+  application_answers: Array<Record<string, unknown>>;
+  additional_information: Record<string, unknown>;
+};
+
+export type CandidateDetailRubricResultDto = {
+  job_rubric_item_id: string;
+  rubric_name: string;
+  rubric_description: string;
+  criterion_type: "weighted" | "hard_requirement";
+  weight_label: string;
+  score_0_to_5: number | null;
+  hard_requirement_decision: "pass" | "borderline" | "fail" | null;
+  reason_text: string;
+  evidence_points: string[];
+  uncertainty_note: string | null;
+};
+
+export type CandidateDetailTagDto = {
+  id: string;
+  name: string;
+  source: "ai" | "manual";
+};
+
+export type CandidateDetailSupervisorDto = {
+  hard_requirement_overall: "all_pass" | "has_borderline" | "has_fail";
+  overall_score_5: number | null;
+  overall_score_percent: number | null;
+  ai_summary: string;
+  evidence_points: string[];
+  recommendation: "advance" | "manual_review" | "hold" | "reject";
+  tags: CandidateDetailTagDto[];
+};
+
+export type CandidateDetailFeedbackDto = {
+  id: string;
+  author_name: string | null;
+  note_text: string;
+  created_at: string;
+};
+
+export type CandidateDetailEmailDraftDto = {
+  id: string;
+  draft_type: "reject" | "advance" | "offer" | "other";
+  subject: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CandidateDetailActionContextDto = {
+  current_status: "pending" | "in_progress" | "rejected" | "offer_sent" | "hired";
+  feedbacks: CandidateDetailFeedbackDto[];
+  email_drafts: CandidateDetailEmailDraftDto[];
+};
+
+export type CandidateDetailDto = {
+  candidate_id: string;
+  job: CandidateDetailJobContextDto;
+  raw_input: CandidateDetailRawInputDto;
+  normalized_profile: CandidateDetailNormalizedProfileDto;
+  rubric_results: CandidateDetailRubricResultDto[];
+  supervisor_summary: CandidateDetailSupervisorDto;
+  action_context: CandidateDetailActionContextDto;
+};
+
 export type JobListItemDto = {
   job_id: string;
   title: string;

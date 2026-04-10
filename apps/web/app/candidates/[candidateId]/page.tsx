@@ -1,4 +1,4 @@
-import { CandidateDetailEmptyState } from "@/components/candidate/CandidateDetailEmptyState";
+import { CandidateDetailWorkspace } from "@/components/candidate/detail/CandidateDetailWorkspace";
 
 type CandidateDetailPageProps = {
   params: Promise<{ candidateId: string }>;
@@ -7,5 +7,5 @@ type CandidateDetailPageProps = {
 export default async function CandidateDetailPage({ params }: CandidateDetailPageProps) {
   const { candidateId } = await params;
 
-  return <CandidateDetailEmptyState candidateId={candidateId} />;
+  return <CandidateDetailWorkspace candidateId={candidateId} />;
 }

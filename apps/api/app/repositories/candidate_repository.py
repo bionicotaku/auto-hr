@@ -6,9 +6,12 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models.candidate import Candidate
 from app.models.candidate_document import CandidateDocument
+from app.models.candidate_email_draft import CandidateEmailDraft
+from app.models.candidate_feedback import CandidateFeedback
 from app.models.candidate_profile import CandidateProfile
 from app.models.candidate_rubric_result import CandidateRubricResult
 from app.models.candidate_tag import CandidateTag
+from app.models.job import Job
 
 
 @dataclass(frozen=True)
@@ -175,10 +178,13 @@ class CandidateRepository:
         statement = (
             select(Candidate)
             .options(
+                selectinload(Candidate.job).selectinload(Job.rubric_items),
                 selectinload(Candidate.profile),
                 selectinload(Candidate.documents),
                 selectinload(Candidate.rubric_results),
                 selectinload(Candidate.tags),
+                selectinload(Candidate.feedbacks),
+                selectinload(Candidate.email_drafts),
             )
             .where(Candidate.id == candidate_id)
         )
