@@ -1,13 +1,13 @@
 from app.api import service_deps
 from app.core.exceptions import ConflictError, DomainValidationError
 from app.repositories.job_repository import JobRepository
+from app.schemas.analysis_runs import AnalysisRunStartResponse
 from app.schemas.ai.job_definition import (
     JobAgentEditResponseSchema,
     JobChatResponseSchema,
     JobDraftSchema,
     JobFinalizeScoringResponseSchema,
 )
-from app.schemas.jobs import CandidateImportResponse
 from app.services.job_service import JobService
 
 
@@ -88,14 +88,40 @@ class StubFinalizeWorkflow:
         )
 
 
-class StubCandidateImportService:
+class StubCandidateImportRunService:
     def __init__(self, *, error: Exception | None = None):
         self.error = error
 
-    async def import_candidate(self, **_kwargs):
+    async def start_run(self, **_kwargs):
         if self.error:
             raise self.error
-        return CandidateImportResponse(candidate_id="candidate-001", job_id="job-001")
+        return AnalysisRunStartResponse(
+            run_id="run-candidate-001",
+            run_type="candidate_import",
+            status="queued",
+            total_ai_steps=5,
+        )
+
+    async def execute_run(self, *_args, **_kwargs):
+        return None
+
+
+class StubJobFinalizeRunService:
+    def __init__(self, *, error: Exception | None = None):
+        self.error = error
+
+    def start_run(self, **_kwargs):
+        if self.error:
+            raise self.error
+        return AnalysisRunStartResponse(
+            run_id="run-job-001",
+            run_type="job_finalize",
+            status="queued",
+            total_ai_steps=1,
+        )
+
+    async def execute_run(self, *_args, **_kwargs):
+        return None
 
 
 class StubJobQueryService:
@@ -164,8 +190,12 @@ def override_job_service(session, _settings):
     )
 
 
-def override_candidate_import_service(_session, _settings):
-    return StubCandidateImportService()
+def override_candidate_import_run_service(_settings):
+    return StubCandidateImportRunService()
+
+
+def override_job_finalize_run_service(_settings):
+    return StubJobFinalizeRunService()
 
 
 def override_job_query_service(_session, _settings):
@@ -297,6 +327,7 @@ def test_agent_edit_endpoint_returns_generated_content(client, monkeypatch) -> N
 
 def test_finalize_endpoint_returns_active_job_id(client, monkeypatch) -> None:
     monkeypatch.setattr(service_deps, "get_job_service", override_job_service)
+    monkeypatch.setattr(service_deps, "get_job_finalize_run_service", override_job_finalize_run_service)
 
     create_response = client.post(
         "/api/jobs/from-description",
@@ -305,7 +336,7 @@ def test_finalize_endpoint_returns_active_job_id(client, monkeypatch) -> None:
     job_id = create_response.json()["job_id"]
 
     response = client.post(
-        f"/api/jobs/{job_id}/finalize",
+        f"/api/jobs/{job_id}/finalize-runs",
         json={
             "description_text": "Current finalized description",
             "responsibilities": ["Run kickoff"],
@@ -322,9 +353,13 @@ def test_finalize_endpoint_returns_active_job_id(client, monkeypatch) -> None:
         },
     )
 
-    assert response.status_code == 200
-    assert response.json()["job_id"] == job_id
-    assert response.json()["lifecycle_status"] == "active"
+    assert response.status_code == 201
+    assert response.json() == {
+        "run_id": "run-job-001",
+        "run_type": "job_finalize",
+        "status": "queued",
+        "total_ai_steps": 1,
+    }
 
 
 def test_candidate_import_context_endpoint_returns_job_context(client, monkeypatch) -> None:
@@ -356,28 +391,37 @@ def test_candidate_import_context_endpoint_returns_not_found(client, monkeypatch
 
 
 def test_candidate_import_endpoint_returns_candidate_id(client, monkeypatch) -> None:
-    monkeypatch.setattr(service_deps, "get_candidate_import_service", override_candidate_import_service)
+    monkeypatch.setattr(
+        service_deps,
+        "get_candidate_import_run_service",
+        override_candidate_import_run_service,
+    )
 
     response = client.post(
-        "/api/jobs/job-001/candidates/import",
+        "/api/jobs/job-001/candidate-import-runs",
         data={"raw_text_input": "Candidate raw text"},
     )
 
     assert response.status_code == 201
-    assert response.json() == {"candidate_id": "candidate-001", "job_id": "job-001"}
+    assert response.json() == {
+        "run_id": "run-candidate-001",
+        "run_type": "candidate_import",
+        "status": "queued",
+        "total_ai_steps": 5,
+    }
 
 
 def test_candidate_import_endpoint_returns_conflict_for_draft_job(client, monkeypatch) -> None:
     monkeypatch.setattr(
         service_deps,
-        "get_candidate_import_service",
-        lambda _session, _settings: StubCandidateImportService(
+        "get_candidate_import_run_service",
+        lambda _settings: StubCandidateImportRunService(
             error=ConflictError("Job job-001 is not ready for candidate analysis.")
         ),
     )
 
     response = client.post(
-        "/api/jobs/job-001/candidates/import",
+        "/api/jobs/job-001/candidate-import-runs",
         data={"raw_text_input": "Candidate raw text"},
     )
 
@@ -388,13 +432,13 @@ def test_candidate_import_endpoint_returns_conflict_for_draft_job(client, monkey
 def test_candidate_import_endpoint_returns_validation_error(client, monkeypatch) -> None:
     monkeypatch.setattr(
         service_deps,
-        "get_candidate_import_service",
-        lambda _session, _settings: StubCandidateImportService(
+        "get_candidate_import_run_service",
+        lambda _settings: StubCandidateImportRunService(
             error=DomainValidationError("Candidate import requires text input or at least one PDF.")
         ),
     )
 
-    response = client.post("/api/jobs/job-001/candidates/import")
+    response = client.post("/api/jobs/job-001/candidate-import-runs")
 
     assert response.status_code == 422
     assert response.json()["error"]["message"] == "Candidate import requires text input or at least one PDF."

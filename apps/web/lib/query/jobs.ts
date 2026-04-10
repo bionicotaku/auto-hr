@@ -12,10 +12,10 @@ import {
   getJobDetail,
   getJobEdit,
   getJobs,
-  importCandidateToJob,
+  startCandidateImportRun,
 } from "@/lib/api/jobs";
 import type {
-  CandidateImportResponseDto,
+  AnalysisRunStartResponseDto,
   JobChatRequestDto,
   JobChatResponseDto,
   JobCandidateImportContextDto,
@@ -24,7 +24,6 @@ import type {
   JobDetailResponseDto,
   JobEditResponseDto,
   JobFinalizeRequestDto,
-  JobFinalizeResponseDto,
   JobGeneratedContentRequestDto,
   JobGeneratedContentResponseDto,
   JobListResponseDto,
@@ -71,8 +70,8 @@ export function useJobCandidatesQuery(jobId: string, query: JobCandidateListQuer
 }
 
 export function useCandidateImportMutation(jobId: string) {
-  return useMutation<CandidateImportResponseDto, Error, FormData>({
-    mutationFn: (payload) => importCandidateToJob(jobId, payload),
+  return useMutation<AnalysisRunStartResponseDto, Error, FormData>({
+    mutationFn: (payload) => startCandidateImportRun(jobId, payload),
   });
 }
 
@@ -89,7 +88,7 @@ export function useJobAgentEditMutation(jobId: string) {
 }
 
 export function useJobFinalizeMutation(jobId: string) {
-  return useMutation<JobFinalizeResponseDto, Error, JobFinalizeRequestDto>({
+  return useMutation<AnalysisRunStartResponseDto, Error, JobFinalizeRequestDto>({
     mutationFn: (payload) => finalizeJobDraft(jobId, payload),
   });
 }

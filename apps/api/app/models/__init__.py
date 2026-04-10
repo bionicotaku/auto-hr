@@ -1,3 +1,5 @@
+from app.models.analysis_run import AnalysisRun
+from app.models.analysis_run_event import AnalysisRunEvent
 from app.models.base import Base
 from app.models.candidate import Candidate
 from app.models.candidate_document import CandidateDocument
@@ -11,6 +13,8 @@ from app.models.job_rubric_item import JobRubricItem
 
 __all__ = [
     "Base",
+    "AnalysisRun",
+    "AnalysisRunEvent",
     "Candidate",
     "CandidateDocument",
     "CandidateEmailDraft",

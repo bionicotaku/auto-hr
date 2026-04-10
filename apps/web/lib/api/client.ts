@@ -3,7 +3,7 @@ import { ApiError } from "@/lib/api/types";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
 const API_REQUEST_TIMEOUT_MS = 120000;
 
-function buildUrl(path: string) {
+export function buildApiUrl(path: string) {
   return API_BASE_URL ? `${API_BASE_URL}${path}` : path;
 }
 
@@ -130,7 +130,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
       abortController.abort("request_timeout");
     }, API_REQUEST_TIMEOUT_MS);
 
-    const response = await fetch(buildUrl(path), {
+    const response = await fetch(buildApiUrl(path), {
       ...init,
       signal: abortController.signal,
       headers: {

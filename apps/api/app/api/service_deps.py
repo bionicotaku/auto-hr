@@ -2,17 +2,19 @@ from sqlalchemy.orm import Session
 
 from app.ai.client import OpenAIResponsesClient
 from app.core.config import Settings
+from app.core.db import get_session_factory
 from app.files.temp_manager import TempImportManager
+from app.repositories.analysis_run_repository import AnalysisRunRepository
 from app.repositories.candidate_repository import CandidateRepository
 from app.repositories.job_repository import JobRepository
-from app.services.candidate_analysis_service import CandidateAnalysisService
+from app.services.analysis_run_service import AnalysisRunService
+from app.services.candidate_import_run_service import CandidateImportRunService
+from app.services.candidate_query_service import CandidateQueryService
 from app.services.email_draft_service import EmailDraftService
 from app.services.feedback_service import FeedbackService
-from app.services.candidate_import_service import CandidateImportService
-from app.services.candidate_query_service import CandidateQueryService
+from app.services.job_finalize_run_service import JobFinalizeRunService
 from app.services.job_query_service import JobQueryService
 from app.services.job_service import JobService
-from app.workflows.candidate_analysis.import_prepare import CandidateImportPrepareWorkflow
 from app.workflows.candidate_analysis.email_draft import CandidateEmailDraftWorkflow
 from app.workflows.candidate_analysis.persist import CandidatePersistWorkflow
 from app.workflows.candidate_analysis.score_items import CandidateScoreItemsWorkflow
@@ -30,6 +32,18 @@ from app.workflows.job_definition.finalize_title_summary import (
 )
 
 
+def _build_job_finalize_workflow() -> JobDefinitionFinalizeWorkflow:
+    client = OpenAIResponsesClient()
+    return JobDefinitionFinalizeWorkflow(
+        title_summary_workflow=JobDefinitionFinalizeTitleSummaryWorkflow(client),
+        rubric_items_workflow=JobDefinitionFinalizeRubricItemsWorkflow(
+            client,
+            concurrency_limit=6,
+            max_retries=1,
+        ),
+    )
+
+
 def get_job_service(session: Session, _: Settings) -> JobService:
     repository = JobRepository()
     client = OpenAIResponsesClient()
@@ -39,42 +53,41 @@ def get_job_service(session: Session, _: Settings) -> JobService:
         draft_workflow=JobDefinitionCreateDraftWorkflow(client),
         chat_workflow=JobDefinitionChatWorkflow(client),
         agent_edit_workflow=JobDefinitionAgentEditWorkflow(client),
-        finalize_workflow=JobDefinitionFinalizeWorkflow(
-            title_summary_workflow=JobDefinitionFinalizeTitleSummaryWorkflow(client),
-            rubric_items_workflow=JobDefinitionFinalizeRubricItemsWorkflow(
-                client,
-                concurrency_limit=6,
-                max_retries=1,
-            ),
-        ),
+        finalize_workflow=_build_job_finalize_workflow(),
     )
 
 
-def get_candidate_import_service(session: Session, settings: Settings) -> CandidateImportService:
-    job_repository = JobRepository()
-    candidate_repository = CandidateRepository()
-    client = OpenAIResponsesClient()
-    temp_import_manager = TempImportManager(settings)
+def get_analysis_run_service(_settings: Settings) -> AnalysisRunService:
+    return AnalysisRunService(
+        session_factory=get_session_factory(),
+        repository=AnalysisRunRepository(),
+    )
 
-    candidate_analysis_service = CandidateAnalysisService(
-        session=session,
-        job_repository=job_repository,
-        import_prepare_workflow=CandidateImportPrepareWorkflow(
-            job_repository=job_repository,
-            temp_import_manager=temp_import_manager,
-        ),
+
+def get_job_finalize_run_service(_settings: Settings) -> JobFinalizeRunService:
+    return JobFinalizeRunService(
+        session_factory=get_session_factory(),
+        analysis_run_repository=AnalysisRunRepository(),
+        job_repository=JobRepository(),
+        finalize_workflow=_build_job_finalize_workflow(),
+    )
+
+
+def get_candidate_import_run_service(settings: Settings) -> CandidateImportRunService:
+    client = OpenAIResponsesClient()
+    return CandidateImportRunService(
+        session_factory=get_session_factory(),
+        analysis_run_repository=AnalysisRunRepository(),
+        job_repository=JobRepository(),
+        temp_import_manager=TempImportManager(settings),
         standardize_workflow=CandidateStandardizeWorkflow(client),
         score_items_workflow=CandidateScoreItemsWorkflow(client, concurrency_limit=6, max_retries=1),
         summarize_workflow=CandidateSummarizeWorkflow(client),
-        temp_upload_dir_path=settings.temp_upload_dir_path,
-    )
-    return CandidateImportService(
-        session=session,
-        candidate_analysis_service=candidate_analysis_service,
         persist_workflow=CandidatePersistWorkflow(
             settings=settings,
-            candidate_repository=candidate_repository,
+            candidate_repository=CandidateRepository(),
         ),
+        temp_upload_dir_path=settings.temp_upload_dir_path,
     )
 
 

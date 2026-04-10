@@ -49,7 +49,7 @@ export function CandidateImportForm({
 
       <div className="flex flex-wrap gap-3">
         <Button size="lg" disabled={submitDisabled} onClick={onSubmit}>
-          {isSubmitting ? "生成中..." : "生成"}
+          {isSubmitting ? "分析中..." : "分析"}
         </Button>
         <Button type="button" variant="secondary" size="lg" onClick={onCancel} disabled={isSubmitting}>
           取消

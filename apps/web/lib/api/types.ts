@@ -113,11 +113,6 @@ export type JobFinalizeRequestDto = {
   rubric_items: JobRubricDraftItemDto[];
 };
 
-export type JobFinalizeResponseDto = {
-  job_id: string;
-  lifecycle_status: "active";
-};
-
 export type JobCandidateImportContextDto = {
   job_id: string;
   title: string;
@@ -125,9 +120,57 @@ export type JobCandidateImportContextDto = {
   lifecycle_status: "draft" | "active";
 };
 
-export type CandidateImportResponseDto = {
-  candidate_id: string;
-  job_id: string;
+export type AnalysisRunStartResponseDto = {
+  run_id: string;
+  run_type: "job_finalize" | "candidate_import";
+  status: "queued" | "running" | "completed" | "failed";
+  total_ai_steps: number;
+};
+
+export type AnalysisRunDto = {
+  run_id: string;
+  run_type: "job_finalize" | "candidate_import";
+  resource_id: string;
+  status: "queued" | "running" | "completed" | "failed";
+  current_stage: string;
+  current_ai_step: number;
+  total_ai_steps: number;
+  result_resource_type: "job" | "candidate" | null;
+  result_resource_id: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AnalysisRunConnectedEventDto = {
+  run_id: string;
+  run_type: "job_finalize" | "candidate_import";
+  status: "queued" | "running" | "completed" | "failed";
+  current_stage: string;
+  current_ai_step: number;
+  total_ai_steps: number;
+};
+
+export type AnalysisRunProgressEventDto = {
+  run_id: string;
+  run_type: "job_finalize" | "candidate_import";
+  current_stage: string;
+  current_ai_step: number;
+  total_ai_steps: number;
+  message: string;
+};
+
+export type AnalysisRunCompletedEventDto = {
+  run_id: string;
+  run_type: "job_finalize" | "candidate_import";
+  result_resource_type: "job" | "candidate";
+  result_resource_id: string;
+};
+
+export type AnalysisRunFailedEventDto = {
+  run_id: string;
+  run_type: "job_finalize" | "candidate_import";
+  message: string;
 };
 
 export type CandidateDetailJobContextDto = {

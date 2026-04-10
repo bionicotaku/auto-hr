@@ -1,11 +1,11 @@
 from typing import Literal
 
-from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, File, Form, Query, Response, UploadFile, status
 
 from app.api import service_deps
 from app.api.deps import AppSettings, DbSession
+from app.schemas.analysis_runs import AnalysisRunStartResponse
 from app.schemas.jobs import (
-    CandidateImportResponse,
     CreateJobDraftResponse,
     CreateJobFromDescriptionRequest,
     CreateJobFromFormRequest,
@@ -17,7 +17,6 @@ from app.schemas.jobs import (
     JobDetailResponse,
     JobEditResponse,
     JobFinalizeRequest,
-    JobFinalizeResponse,
     JobGeneratedContentResponse,
     JobListResponse,
 )
@@ -99,23 +98,25 @@ def list_job_candidates(
 
 
 @router.post(
-    "/{job_id}/candidates/import",
-    response_model=CandidateImportResponse,
+    "/{job_id}/candidate-import-runs",
+    response_model=AnalysisRunStartResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def import_candidate_to_job(
+async def start_candidate_import_run(
     job_id: str,
-    session: DbSession,
+    background_tasks: BackgroundTasks,
     settings: AppSettings,
     raw_text_input: str | None = Form(default=None),
     files: list[UploadFile] | None = File(default=None),
-) -> CandidateImportResponse:
-    service = service_deps.get_candidate_import_service(session, settings)
-    return await service.import_candidate(
+) -> AnalysisRunStartResponse:
+    service = service_deps.get_candidate_import_run_service(settings)
+    response = await service.start_run(
         job_id=job_id,
         raw_text_input=raw_text_input,
         files=files or [],
     )
+    background_tasks.add_task(service.execute_run, response.run_id)
+    return response
 
 
 @router.post("/{job_id}/chat", response_model=JobChatResponse)
@@ -140,15 +141,17 @@ def agent_edit_job_draft(
     return service.agent_edit_draft(job_id, payload)
 
 
-@router.post("/{job_id}/finalize", response_model=JobFinalizeResponse)
-def finalize_job_draft(
+@router.post("/{job_id}/finalize-runs", response_model=AnalysisRunStartResponse, status_code=status.HTTP_201_CREATED)
+def start_job_finalize_run(
     job_id: str,
     payload: JobFinalizeRequest,
-    session: DbSession,
+    background_tasks: BackgroundTasks,
     settings: AppSettings,
-) -> JobFinalizeResponse:
-    service = service_deps.get_job_service(session, settings)
-    return service.finalize_draft(job_id, payload)
+) -> AnalysisRunStartResponse:
+    service = service_deps.get_job_finalize_run_service(settings)
+    response = service.start_run(job_id=job_id, payload=payload)
+    background_tasks.add_task(service.execute_run, response.run_id)
+    return response
 
 
 @router.delete("/{job_id}/draft", status_code=status.HTTP_204_NO_CONTENT)

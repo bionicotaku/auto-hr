@@ -1,6 +1,6 @@
 import { apiRequest } from "@/lib/api/client";
 import type {
-  CandidateImportResponseDto,
+  AnalysisRunStartResponseDto,
   CreateJobDraftResponseDto,
   CreateJobFromDescriptionRequestDto,
   CreateJobFromFormRequestDto,
@@ -12,7 +12,6 @@ import type {
   JobDetailResponseDto,
   JobEditResponseDto,
   JobFinalizeRequestDto,
-  JobFinalizeResponseDto,
   JobGeneratedContentRequestDto,
   JobGeneratedContentResponseDto,
   JobListResponseDto,
@@ -100,8 +99,8 @@ export function getJobCandidates(
   return apiRequest<JobCandidateListResponseDto>(`/api/jobs/${jobId}/candidates?${searchParams.toString()}`);
 }
 
-export function importCandidateToJob(jobId: string, payload: FormData): Promise<CandidateImportResponseDto> {
-  return apiRequest<CandidateImportResponseDto>(`/api/jobs/${jobId}/candidates/import`, {
+export function startCandidateImportRun(jobId: string, payload: FormData): Promise<AnalysisRunStartResponseDto> {
+  return apiRequest<AnalysisRunStartResponseDto>(`/api/jobs/${jobId}/candidate-import-runs`, {
     method: "POST",
     body: payload,
   });
@@ -127,8 +126,8 @@ export function agentEditJobDraft(
 export function finalizeJobDraft(
   jobId: string,
   payload: JobFinalizeRequestDto,
-): Promise<JobFinalizeResponseDto> {
-  return apiRequest<JobFinalizeResponseDto>(`/api/jobs/${jobId}/finalize`, {
+): Promise<AnalysisRunStartResponseDto> {
+  return apiRequest<AnalysisRunStartResponseDto>(`/api/jobs/${jobId}/finalize-runs`, {
     method: "POST",
     body: JSON.stringify(payload),
   });

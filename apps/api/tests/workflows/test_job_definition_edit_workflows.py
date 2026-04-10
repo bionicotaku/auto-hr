@@ -314,11 +314,13 @@ def test_finalize_workflow_returns_valid_schema() -> None:
     client = FakeFinalizeOrchestratorClient()
     workflow = JobDefinitionFinalizeWorkflow(client)
 
-    response = workflow.run(
-        description_text="Current JD",
-        responsibilities=["Run kickoff"],
-        skills=["Recruiting ops"],
-        rubric_items=valid_rubric_items(),
+    response = asyncio.run(
+        workflow.run(
+            description_text="Current JD",
+            responsibilities=["Run kickoff"],
+            skills=["Recruiting ops"],
+            rubric_items=valid_rubric_items(),
+        )
     )
 
     assert isinstance(response, JobFinalizeScoringResponseSchema)
@@ -349,9 +351,11 @@ def test_finalize_workflow_rejects_missing_rubric_item_enrichment() -> None:
     )
 
     with pytest.raises(Exception, match="did not match the requested rubric items"):
-        workflow.run(
-            description_text="Current JD",
-            responsibilities=["Run kickoff"],
-            skills=["Recruiting ops"],
-            rubric_items=valid_rubric_items(),
+        asyncio.run(
+            workflow.run(
+                description_text="Current JD",
+                responsibilities=["Run kickoff"],
+                skills=["Recruiting ops"],
+                rubric_items=valid_rubric_items(),
+            )
         )

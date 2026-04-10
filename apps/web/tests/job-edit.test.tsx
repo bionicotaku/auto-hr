@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,6 +6,7 @@ import { Providers } from "@/app/providers";
 import { JobEditWorkspace } from "@/components/job/edit/JobEditWorkspace";
 
 const pushMock = vi.fn();
+const eventSourceInstances: FakeEventSource[] = [];
 
 vi.mock("next/navigation", async () => {
   const actual = await vi.importActual<typeof import("next/navigation")>("next/navigation");
@@ -20,6 +21,34 @@ vi.mock("next/navigation", async () => {
 
 function renderWithProviders(node: ReactElement) {
   return render(<Providers>{node}</Providers>);
+}
+
+class FakeEventSource {
+  listeners = new Map<string, Array<(event: MessageEvent<string>) => void>>();
+  onerror: ((this: EventSource, ev: Event) => unknown) | null = null;
+  url: string;
+
+  constructor(url: string) {
+    this.url = url;
+    eventSourceInstances.push(this);
+  }
+
+  addEventListener(type: string, listener: (event: MessageEvent<string>) => void) {
+    const current = this.listeners.get(type) ?? [];
+    current.push(listener);
+    this.listeners.set(type, current);
+  }
+
+  close() {
+    return undefined;
+  }
+
+  emit(type: string, payload: unknown) {
+    const listeners = this.listeners.get(type) ?? [];
+    for (const listener of listeners) {
+      listener(new MessageEvent("message", { data: JSON.stringify(payload) }));
+    }
+  }
 }
 
 function mockJsonResponse(body: unknown, status = 200) {
@@ -74,7 +103,9 @@ function makeActiveEditPayload() {
 describe("Job edit workspace", () => {
   beforeEach(() => {
     pushMock.mockReset();
+    eventSourceInstances.length = 0;
     vi.stubGlobal("fetch", vi.fn());
+    vi.stubGlobal("EventSource", FakeEventSource as unknown as typeof EventSource);
   });
 
   afterEach(() => {
@@ -156,11 +187,18 @@ describe("Job edit workspace", () => {
     expect(screen.getByLabelText("Skills 编辑区")).toHaveValue("Hiring strategy\nFunnel ops");
   });
 
-  it("finalizes the job and navigates back to jobs", async () => {
+  it("starts a finalize run and navigates to job detail after completion", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock
       .mockResolvedValueOnce(mockJsonResponse(makeEditPayload()))
-      .mockResolvedValueOnce(mockJsonResponse({ job_id: "job-123", lifecycle_status: "active" }));
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          run_id: "run-job-123",
+          run_type: "job_finalize",
+          status: "queued",
+          total_ai_steps: 1,
+        }),
+      );
 
     renderWithProviders(<JobEditWorkspace jobId="job-123" />);
 
@@ -169,12 +207,42 @@ describe("Job edit workspace", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining("/api/jobs/job-123/finalize"),
+        expect.stringContaining("/api/jobs/job-123/finalize-runs"),
         expect.objectContaining({
           method: "POST",
         }),
       );
-      expect(pushMock).toHaveBeenCalledWith("/jobs");
+    });
+
+    expect(await screen.findByText("岗位分析进度")).toBeInTheDocument();
+
+    await act(async () => {
+      eventSourceInstances[0].emit("connected", {
+        run_id: "run-job-123",
+        run_type: "job_finalize",
+        status: "running",
+        current_stage: "preparing",
+        current_ai_step: 0,
+        total_ai_steps: 1,
+      });
+      eventSourceInstances[0].emit("progress", {
+        run_id: "run-job-123",
+        run_type: "job_finalize",
+        current_stage: "finalizing_definition",
+        current_ai_step: 1,
+        total_ai_steps: 1,
+        message: "AI 已完成岗位定稿分析",
+      });
+      eventSourceInstances[0].emit("completed", {
+        run_id: "run-job-123",
+        run_type: "job_finalize",
+        result_resource_type: "job",
+        result_resource_id: "job-123",
+      });
+    });
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith("/jobs/job-123");
     });
   });
 
@@ -182,7 +250,14 @@ describe("Job edit workspace", () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock
       .mockResolvedValueOnce(mockJsonResponse(makeActiveEditPayload()))
-      .mockResolvedValueOnce(mockJsonResponse({ job_id: "job-123", lifecycle_status: "active" }));
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          run_id: "run-job-123",
+          run_type: "job_finalize",
+          status: "queued",
+          total_ai_steps: 1,
+        }),
+      );
 
     renderWithProviders(<JobEditWorkspace jobId="job-123" />);
 
@@ -194,20 +269,39 @@ describe("Job edit workspace", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining("/api/jobs/job-123/finalize"),
+        expect.stringContaining("/api/jobs/job-123/finalize-runs"),
         expect.objectContaining({
           method: "POST",
         }),
       );
+    });
+
+    await act(async () => {
+      eventSourceInstances[0].emit("completed", {
+        run_id: "run-job-123",
+        run_type: "job_finalize",
+        result_resource_type: "job",
+        result_resource_id: "job-123",
+      });
+    });
+
+    await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith("/jobs/job-123");
     });
   });
 
-  it("keeps local truth when finalize fails", async () => {
+  it("keeps local truth when finalize run fails", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock
       .mockResolvedValueOnce(mockJsonResponse(makeEditPayload()))
-      .mockResolvedValueOnce(mockJsonResponse({ message: "最终定稿失败" }, 422));
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          run_id: "run-job-123",
+          run_type: "job_finalize",
+          status: "queued",
+          total_ai_steps: 1,
+        }),
+      );
 
     renderWithProviders(<JobEditWorkspace jobId="job-123" />);
 
@@ -220,6 +314,21 @@ describe("Job edit workspace", () => {
       target: { value: "Own funnel\nPartner hiring team" },
     });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/jobs/job-123/finalize-runs"),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    await act(async () => {
+      eventSourceInstances[0].emit("failed", {
+        run_id: "run-job-123",
+        run_type: "job_finalize",
+        message: "最终定稿失败",
+      });
+    });
 
     expect(await screen.findByText("最终定稿失败")).toBeInTheDocument();
     expect(description).toHaveValue("Locally edited JD");

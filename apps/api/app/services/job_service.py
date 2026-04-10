@@ -41,7 +41,7 @@ class JobService:
         self,
         session: Session,
         job_repository: JobRepository,
-        draft_workflow: JobDefinitionCreateDraftWorkflow,
+        draft_workflow: JobDefinitionCreateDraftWorkflow | None = None,
         chat_workflow=None,
         agent_edit_workflow=None,
         finalize_workflow=None,
@@ -56,6 +56,8 @@ class JobService:
     def create_draft_from_description(
         self, payload: CreateJobFromDescriptionRequest
     ) -> CreateJobDraftResponse:
+        if self.draft_workflow is None:
+            raise DomainValidationError("Job draft workflow is not configured.")
         logger.info("Job stage started: stage=job_draft_create result=start creation_mode=from_description")
         try:
             draft = self.draft_workflow.from_description(payload.description_text)
@@ -84,6 +86,8 @@ class JobService:
         return CreateJobDraftResponse(job_id=job.id, lifecycle_status="draft")
 
     def create_draft_from_form(self, payload: CreateJobFromFormRequest) -> CreateJobDraftResponse:
+        if self.draft_workflow is None:
+            raise DomainValidationError("Job draft workflow is not configured.")
         logger.info("Job stage started: stage=job_draft_create result=start creation_mode=from_form")
         try:
             draft = self.draft_workflow.from_form(payload.model_dump(mode="json"))
@@ -201,7 +205,7 @@ class JobService:
         logger.info("Job stage finished: stage=job_agent_edit result=success job_id=%s", job_id)
         return self._to_generated_content_response(response)
 
-    def finalize_draft(self, job_id: str, payload: JobFinalizeRequest) -> JobFinalizeResponse:
+    async def finalize_draft(self, job_id: str, payload: JobFinalizeRequest) -> JobFinalizeResponse:
         job = self._get_editable_job(job_id)
         if self.finalize_workflow is None:
             raise DomainValidationError("Job finalize workflow is not configured.")
@@ -212,7 +216,7 @@ class JobService:
             job.lifecycle_status,
         )
         try:
-            response = self.finalize_workflow.run(
+            response = await self.finalize_workflow.run(
                 description_text=payload.description_text,
                 responsibilities=payload.responsibilities,
                 skills=payload.skills,

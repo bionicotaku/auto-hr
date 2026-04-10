@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { AnalysisProgressCard } from "@/components/ui/AnalysisProgressCard";
 import { Card } from "@/components/ui/Card";
 import { ErrorStateCard } from "@/components/ui/ErrorStateCard";
 import { Spinner } from "@/components/ui/Spinner";
+import { useAnalysisRun } from "@/hooks/useAnalysisRun";
 import { getJobApiErrorMessage } from "@/lib/api/jobs";
 import type { JobEditorMessageDto, JobRubricDraftItemDto } from "@/lib/api/types";
 import {
@@ -48,6 +50,13 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
   const agentMutation = useJobAgentEditMutation(jobId);
   const finalizeMutation = useJobFinalizeMutation(jobId);
   const deleteDraftMutation = useDeleteJobDraftMutation(jobId);
+  const analysisRun = useAnalysisRun({
+    onCompleted: (event) => {
+      if (event.result_resource_type === "job") {
+        router.push(`/jobs/${event.result_resource_id}`);
+      }
+    },
+  });
 
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
@@ -96,7 +105,8 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
     chatMutation.isPending ||
     agentMutation.isPending ||
     finalizeMutation.isPending ||
-    deleteDraftMutation.isPending;
+    deleteDraftMutation.isPending ||
+    analysisRun.isRunning;
 
   const headerActions = useMemo(
     () => (
@@ -268,13 +278,14 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
         router.push(`/jobs/${jobId}`);
         return;
       }
-      await finalizeMutation.mutateAsync({
-        description_text: descriptionText,
-        responsibilities: parseLines(responsibilitiesText),
-        skills: parseLines(skillsText),
-        rubric_items: rubricItems,
-      });
-      router.push(editQuery.data?.lifecycle_status === "active" ? `/jobs/${jobId}` : "/jobs");
+      await analysisRun.start(() =>
+        finalizeMutation.mutateAsync({
+          description_text: descriptionText,
+          responsibilities: parseLines(responsibilitiesText),
+          skills: parseLines(skillsText),
+          rubric_items: rubricItems,
+        }),
+      );
     } catch (error) {
       setPanelError(getJobApiErrorMessage(error));
     }
@@ -367,13 +378,22 @@ export function JobEditWorkspace({ jobId }: JobEditWorkspaceProps) {
           </div>
 
           <JobEditActionBar
-            isFinalizePending={finalizeMutation.isPending}
+            isFinalizePending={finalizeMutation.isPending || analysisRun.isRunning}
             isCancelPending={
               editQuery.data?.lifecycle_status === "draft" && deleteDraftMutation.isPending
             }
             onCancel={handleCancel}
             onFinalize={handleFinalize}
           />
+          {analysisRun.state !== "idle" ? (
+            <AnalysisProgressCard
+              title="岗位分析进度"
+              currentStage={analysisRun.currentStage}
+              currentAiStep={analysisRun.currentAiStep}
+              totalAiSteps={analysisRun.totalAiSteps}
+              errorMessage={analysisRun.errorMessage}
+            />
+          ) : null}
         </>
       )}
     </AppShell>

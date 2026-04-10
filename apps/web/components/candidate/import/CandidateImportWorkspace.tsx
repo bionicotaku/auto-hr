@@ -7,9 +7,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { CandidateImportContextCard } from "@/components/candidate/import/CandidateImportContextCard";
 import { CandidateFileDropzone } from "@/components/candidate/import/CandidateFileDropzone";
 import { CandidateImportForm } from "@/components/candidate/import/CandidateImportForm";
+import { AnalysisProgressCard } from "@/components/ui/AnalysisProgressCard";
 import { Card } from "@/components/ui/Card";
 import { ErrorStateCard } from "@/components/ui/ErrorStateCard";
 import { Spinner } from "@/components/ui/Spinner";
+import { useAnalysisRun } from "@/hooks/useAnalysisRun";
 import { getJobApiErrorMessage } from "@/lib/api/jobs";
 import { useCandidateImportMutation, useJobCandidateImportContextQuery } from "@/lib/query/jobs";
 
@@ -23,6 +25,13 @@ export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProp
   const router = useRouter();
   const contextQuery = useJobCandidateImportContextQuery(jobId);
   const importMutation = useCandidateImportMutation(jobId);
+  const analysisRun = useAnalysisRun({
+    onCompleted: (event) => {
+      if (event.result_resource_type === "candidate") {
+        router.push(`/candidates/${event.result_resource_id}`);
+      }
+    },
+  });
 
   const [rawTextInput, setRawTextInput] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -78,7 +87,7 @@ export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProp
   }
 
   async function handleSubmit() {
-    if (!isFormValid || importMutation.isPending) {
+    if (!isFormValid || importMutation.isPending || analysisRun.isRunning) {
       return;
     }
 
@@ -93,8 +102,7 @@ export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProp
 
     try {
       setGlobalError(null);
-      const response = await importMutation.mutateAsync(formData);
-      router.push(`/candidates/${response.candidate_id}`);
+      await analysisRun.start(() => importMutation.mutateAsync(formData));
     } catch (error) {
       setGlobalError(getJobApiErrorMessage(error));
     }
@@ -123,6 +131,15 @@ export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProp
       ) : contextQuery.data ? (
         <div className="space-y-6">
           <CandidateImportContextCard context={contextQuery.data} />
+          {analysisRun.state !== "idle" ? (
+            <AnalysisProgressCard
+              title="候选人分析进度"
+              currentStage={analysisRun.currentStage}
+              currentAiStep={analysisRun.currentAiStep}
+              totalAiSteps={analysisRun.totalAiSteps}
+              errorMessage={analysisRun.errorMessage}
+            />
+          ) : null}
           <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
             <CandidateImportForm
               textValue={rawTextInput}
@@ -134,8 +151,8 @@ export function CandidateImportWorkspace({ jobId }: CandidateImportWorkspaceProp
               globalError={globalError}
               onSubmit={handleSubmit}
               onCancel={handleCancel}
-              submitDisabled={!isFormValid || importMutation.isPending}
-              isSubmitting={importMutation.isPending}
+              submitDisabled={!isFormValid || importMutation.isPending || analysisRun.isRunning}
+              isSubmitting={importMutation.isPending || analysisRun.isRunning}
             />
             <CandidateFileDropzone
               files={selectedFiles}

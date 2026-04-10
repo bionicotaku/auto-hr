@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,6 +6,7 @@ import { Providers } from "@/app/providers";
 import CandidateImportPage from "@/app/jobs/[jobId]/candidates/new/page";
 
 const pushMock = vi.fn();
+const eventSourceInstances: FakeEventSource[] = [];
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -15,6 +16,35 @@ vi.mock("next/navigation", () => ({
 
 function renderWithProviders(node: ReactElement) {
   return render(<Providers>{node}</Providers>);
+}
+
+class FakeEventSource {
+  static instances = eventSourceInstances;
+  listeners = new Map<string, Array<(event: MessageEvent<string>) => void>>();
+  onerror: ((this: EventSource, ev: Event) => unknown) | null = null;
+  url: string;
+
+  constructor(url: string) {
+    this.url = url;
+    eventSourceInstances.push(this);
+  }
+
+  addEventListener(type: string, listener: (event: MessageEvent<string>) => void) {
+    const current = this.listeners.get(type) ?? [];
+    current.push(listener);
+    this.listeners.set(type, current);
+  }
+
+  close() {
+    return undefined;
+  }
+
+  emit(type: string, payload: unknown) {
+    const listeners = this.listeners.get(type) ?? [];
+    for (const listener of listeners) {
+      listener(new MessageEvent("message", { data: JSON.stringify(payload) }));
+    }
+  }
 }
 
 function mockJsonResponse(body: unknown, status = 200) {
@@ -29,7 +59,9 @@ function mockJsonResponse(body: unknown, status = 200) {
 describe("Candidate import page", () => {
   beforeEach(() => {
     pushMock.mockReset();
+    eventSourceInstances.length = 0;
     vi.stubGlobal("fetch", vi.fn());
+    vi.stubGlobal("EventSource", FakeEventSource as unknown as typeof EventSource);
   });
 
   afterEach(() => {
@@ -53,7 +85,7 @@ describe("Candidate import page", () => {
 
     expect(await screen.findByRole("heading", { name: "导入候选人" })).toBeInTheDocument();
     expect(await screen.findByText("AI Recruiter")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "生成" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "分析" })).toBeDisabled();
   });
 
   it("shows the empty-input validation message", async () => {
@@ -169,7 +201,7 @@ describe("Candidate import page", () => {
     expect(textarea).toHaveValue("Candidate profile summary");
   });
 
-  it("submits form data and navigates to candidate detail after success", async () => {
+  it("starts an analysis run and navigates to candidate detail after completion", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock
       .mockResolvedValueOnce(
@@ -182,8 +214,10 @@ describe("Candidate import page", () => {
       )
       .mockResolvedValueOnce(
         mockJsonResponse({
-          candidate_id: "candidate-001",
-          job_id: "job-001",
+          run_id: "run-001",
+          run_type: "candidate_import",
+          status: "queued",
+          total_ai_steps: 6,
         }, 201),
       );
 
@@ -196,24 +230,55 @@ describe("Candidate import page", () => {
       target: { value: "Candidate profile summary" },
     });
 
-    const submitButton = screen.getByRole("button", { name: "生成" });
+    const submitButton = screen.getByRole("button", { name: "分析" });
     expect(submitButton).not.toBeDisabled();
 
     fireEvent.click(submitButton);
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining("/api/jobs/job-001/candidates/import"),
+        expect.stringContaining("/api/jobs/job-001/candidate-import-runs"),
         expect.objectContaining({
           method: "POST",
           body: expect.any(FormData),
         }),
       );
+    });
+
+    expect(await screen.findByText("候选人分析进度")).toBeInTheDocument();
+    expect(eventSourceInstances[0]?.url).toContain("/api/analysis-runs/run-001/events");
+
+    await act(async () => {
+      eventSourceInstances[0].emit("connected", {
+        run_id: "run-001",
+        run_type: "candidate_import",
+        status: "running",
+        current_stage: "preparing",
+        current_ai_step: 0,
+        total_ai_steps: 6,
+      });
+      eventSourceInstances[0].emit("progress", {
+        run_id: "run-001",
+        run_type: "candidate_import",
+        current_stage: "standardizing",
+        current_ai_step: 1,
+        total_ai_steps: 6,
+        message: "AI 已完成候选人标准化",
+      });
+      eventSourceInstances[0].emit("completed", {
+        run_id: "run-001",
+        run_type: "candidate_import",
+        result_resource_type: "candidate",
+        result_resource_id: "candidate-001",
+      });
+    });
+
+    await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith("/candidates/candidate-001");
     });
   });
 
-  it("keeps entered input when import fails", async () => {
+  it("keeps entered input when analysis run fails", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock
       .mockResolvedValueOnce(
@@ -225,7 +290,12 @@ describe("Candidate import page", () => {
         }),
       )
       .mockResolvedValueOnce(
-        mockJsonResponse({ message: "候选人导入失败" }, 422),
+        mockJsonResponse({
+          run_id: "run-001",
+          run_type: "candidate_import",
+          status: "queued",
+          total_ai_steps: 6,
+        }, 201),
       );
 
     renderWithProviders(
@@ -237,7 +307,22 @@ describe("Candidate import page", () => {
       target: { value: "Candidate profile summary" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "生成" }));
+    fireEvent.click(screen.getByRole("button", { name: "分析" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/jobs/job-001/candidate-import-runs"),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    await act(async () => {
+      eventSourceInstances[0].emit("failed", {
+        run_id: "run-001",
+        run_type: "candidate_import",
+        message: "候选人导入失败",
+      });
+    });
 
     expect(await screen.findByText("候选人导入失败")).toBeInTheDocument();
     expect(textarea).toHaveValue("Candidate profile summary");

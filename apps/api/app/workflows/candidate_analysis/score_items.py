@@ -1,5 +1,6 @@
 import asyncio
 from dataclasses import dataclass
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from app.ai.client import OpenAIResponsesClient
@@ -38,7 +39,15 @@ class CandidateScoreItemsWorkflow:
         self.concurrency_limit = concurrency_limit
         self.max_retries = max_retries
 
-    async def run(self, scoring_input: PreparedRubricScoringInput) -> CandidateRubricScoreItemsResult:
+    async def run(
+        self,
+        scoring_input: PreparedRubricScoringInput,
+        progress_callback: Callable[
+            [WeightedRubricResultSchema | HardRequirementRubricResultSchema],
+            Awaitable[None] | None,
+        ]
+        | None = None,
+    ) -> CandidateRubricScoreItemsResult:
         semaphore = asyncio.Semaphore(self.concurrency_limit)
         tasks = [
             self._score_single_item(
@@ -47,6 +56,7 @@ class CandidateScoreItemsWorkflow:
                 job_summary=scoring_input.prepared_input.job_summary,
                 standardized_candidate=scoring_input.standardized_candidate,
                 rubric_item=rubric_item,
+                progress_callback=progress_callback,
             )
             for rubric_item in scoring_input.rubric_items
         ]
@@ -77,6 +87,11 @@ class CandidateScoreItemsWorkflow:
         job_summary: str,
         standardized_candidate: CandidateStandardizationSchema,
         rubric_item: dict[str, Any],
+        progress_callback: Callable[
+            [WeightedRubricResultSchema | HardRequirementRubricResultSchema],
+            Awaitable[None] | None,
+        ]
+        | None,
     ) -> WeightedRubricResultSchema | HardRequirementRubricResultSchema:
         async with semaphore:
             last_error: Exception | None = None
@@ -98,7 +113,10 @@ class CandidateScoreItemsWorkflow:
                             schema_name="weighted_rubric_result_schema",
                             schema=WeightedRubricResultSchema.model_json_schema(),
                         )
-                        return WeightedRubricResultSchema.model_validate(payload)
+                        result = WeightedRubricResultSchema.model_validate(payload)
+                        if progress_callback is not None:
+                            await _maybe_await(progress_callback(result))
+                        return result
 
                     prompt = build_hard_requirement_scoring_prompt(
                         job_title=job_title,
@@ -112,7 +130,10 @@ class CandidateScoreItemsWorkflow:
                         schema_name="hard_requirement_rubric_result_schema",
                         schema=HardRequirementRubricResultSchema.model_json_schema(),
                     )
-                    return HardRequirementRubricResultSchema.model_validate(payload)
+                    result = HardRequirementRubricResultSchema.model_validate(payload)
+                    if progress_callback is not None:
+                        await _maybe_await(progress_callback(result))
+                    return result
                 except Exception as exc:
                     last_error = exc
 
@@ -134,3 +155,8 @@ class CandidateScoreItemsWorkflow:
             "agent_prompt_text": rubric_item["agent_prompt_text"],
             "evidence_guidance_text": rubric_item["evidence_guidance_text"],
         }
+
+
+async def _maybe_await(value) -> None:
+    if asyncio.iscoroutine(value):
+        await value

@@ -34,24 +34,7 @@ class JobDefinitionFinalizeWorkflow:
             max_retries=1,
         )
 
-    def run(
-        self,
-        *,
-        description_text: str,
-        responsibilities: list[str],
-        skills: list[str],
-        rubric_items: list[dict],
-    ) -> JobFinalizeScoringResponseSchema:
-        return asyncio.run(
-            self._run_async(
-                description_text=description_text,
-                responsibilities=responsibilities,
-                skills=skills,
-                rubric_items=rubric_items,
-            )
-        )
-
-    async def _run_async(
+    async def run(
         self,
         *,
         description_text: str,

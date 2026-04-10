@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from pydantic import ValidationError
 
@@ -73,11 +75,15 @@ class StubFinalizeWorkflow:
         self.result = result
         self.error = error
 
-    def run(self, **kwargs):
+    async def run(self, **kwargs):
         self.calls.append(kwargs)
         if self.error:
             raise self.error
         return self.result
+
+
+def run_finalize(service: JobService, job_id: str, payload: JobFinalizeRequest):
+    return asyncio.run(service.finalize_draft(job_id, payload))
 
 
 def make_job_draft() -> JobDraftSchema:
@@ -245,7 +251,8 @@ def test_chat_on_active_job_returns_reply_text(db_session) -> None:
         CreateJobFromDescriptionRequest(description_text="Original raw description input.")
     )
     draft_payload = service.get_job_edit_payload(created.job_id)
-    service.finalize_draft(
+    run_finalize(
+        service,
         created.job_id,
         JobFinalizeRequest(
             description_text="Locally finalized description",
@@ -321,7 +328,8 @@ def test_agent_edit_on_active_job_returns_generated_content_without_writing(db_s
         CreateJobFromDescriptionRequest(description_text="Original raw description input.")
     )
     draft_payload = service.get_job_edit_payload(created.job_id)
-    service.finalize_draft(
+    run_finalize(
+        service,
         created.job_id,
         JobFinalizeRequest(
             description_text="Locally finalized description",
@@ -361,7 +369,8 @@ def test_finalize_draft_updates_job_to_active_and_replaces_rubric(db_session) ->
     )
     loaded_before = service.get_job_edit_payload(created.job_id)
 
-    response = service.finalize_draft(
+    response = run_finalize(
+        service,
         created.job_id,
         JobFinalizeRequest(
           description_text="Locally finalized description",
@@ -405,7 +414,8 @@ def test_finalize_failure_does_not_override_draft(db_session) -> None:
     loaded_before = service.get_job_edit_payload(created.job_id)
 
     with pytest.raises(DomainValidationError):
-        service.finalize_draft(
+        run_finalize(
+            service,
             created.job_id,
             JobFinalizeRequest(
                 description_text="Locally finalized description",
@@ -433,7 +443,8 @@ def test_finalize_on_active_job_updates_in_place(db_session) -> None:
         CreateJobFromDescriptionRequest(description_text="Original raw description input.")
     )
     draft_payload = service.get_job_edit_payload(created.job_id)
-    service.finalize_draft(
+    run_finalize(
+        service,
         created.job_id,
         JobFinalizeRequest(
             description_text="Locally finalized description",
@@ -443,7 +454,8 @@ def test_finalize_on_active_job_updates_in_place(db_session) -> None:
         ),
     )
 
-    second_response = service.finalize_draft(
+    second_response = run_finalize(
+        service,
         created.job_id,
         JobFinalizeRequest(
             description_text="Second finalize attempt",
