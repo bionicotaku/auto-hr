@@ -12,6 +12,7 @@
 - [AI工作流设计](/Users/evan/Downloads/auto-hr/docs/AI工作流设计.md)
 - [数据模型设计文档](/Users/evan/Downloads/auto-hr/docs/数据模型设计文档.md)
 - [页面路由与前端状态设计](/Users/evan/Downloads/auto-hr/docs/页面路由与前端状态设计.md)
+- [前后端API交互文档](/Users/evan/Downloads/auto-hr/docs/前后端API交互文档.md)
 
 ## 2. Demo 说明文档
 
